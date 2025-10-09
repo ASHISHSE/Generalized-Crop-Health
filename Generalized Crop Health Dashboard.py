@@ -204,7 +204,7 @@ def process_ndvi_ndwi_data(df):
     # Convert Date column to datetime (handling both formats)
     if 'Date' in df_processed.columns:
         # Try different date formats
-        df_processed['Date'] = pd.to_datetime(df_processed['Date'], errors='coerce')
+        df_processed['Date(DD-MM-YYYY)'] = pd.to_datetime(df_processed['Date(DD-MM-YYYY)'], errors='coerce')
     
     # If date conversion failed, try other column names
     if df_processed['Date'].isna().all() and 'Date(DD-MM-YYYY)' in df_processed.columns:
@@ -1121,3 +1121,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
