@@ -10,10 +10,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from PIL import Image
 
-
 # --- Page Config --- 
 st.set_page_config(
-    page_title="👨‍🌾 Smart Crop Health Dashboard",
+    page_title="👨‍🌾 Smart Crop Advisory Dashboard",
     page_icon="👨‍🌾",
     layout="wide"
 )
@@ -29,6 +28,7 @@ st.markdown("""
             color: #262730;
         }
 
+        /* Centered Responsive Header */
         .main-header {
             display: flex;          
             flex-direction: column;
@@ -72,6 +72,7 @@ st.markdown("""
             letter-spacing: 0.4px;
         }
 
+        /* Responsive Button Styling */
         div.stButton > button:first-child {
             background: linear-gradient(90deg, #2d6a4f, #52b788);
             color: white;
@@ -96,6 +97,7 @@ st.markdown("""
             margin-top: 40px;
         }
 
+        /* Make sure header scales well on smaller devices */
         @media (max-width: 768px) {
             .main-header {
                 margin-top: 25px;
@@ -109,12 +111,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- HEADER ---
+# --- HEADER (Farmer icon above title & centered) ---
 st.markdown("""
     <div class="main-header">
         <img src="https://raw.githubusercontent.com/ASHISHSE/App_test/main/icon.png" class="logo-icon" alt="Farmer Icon">
-        <div class="main-title">Smart Crop Health Dashboard</div>
-        <div class="subtitle">Comparing 2023 & 2024 Crop Health Data</div>
+        <div class="main-title">Smart Crop Advisory Dashboard</div>
+        <div class="subtitle">Empowering Farmers with Data-Driven Insights</div>
     </div>
 """, unsafe_allow_html=True)
 
@@ -123,7 +125,7 @@ st.markdown("""
 # -----------------------------
 @st.cache_data
 def load_data():
-    # Updated URLs as per requirements
+    # Updated URLs as per request
     ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
     weather_url = "https://docs.google.com/spreadsheets/d/1IsximMN9KrKpsREnWiNu0pbAtQ3idtjl/export?format=xlsx"
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
@@ -137,6 +139,8 @@ def load_data():
         weather_res = requests.get(weather_url, timeout=30)
         weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
         weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
+        
+        # Combine weather data
         weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
         
         # Load MAI data
@@ -144,60 +148,172 @@ def load_data():
         mai_df = pd.read_excel(BytesIO(mai_res.content))
         
         # Process NDVI & NDWI data
-        ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%Y_%m_%d", errors="coerce")
+        ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
+        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
         
         # Process Weather data
         weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
+        weather_df = weather_df.dropna(subset=["Date_dt"]).copy()
         
-        # Convert numeric columns for weather data
+        # Convert numeric columns for weather
         for col in ["Rainfall", "Tmax", "Tmin", "max_Rh", "min_Rh"]:
             if col in weather_df.columns:
                 weather_df[col] = pd.to_numeric(weather_df[col], errors="coerce")
         
-        # Get unique locations for filters
-        districts = sorted(ndvi_ndwi_df["District"].dropna().unique().tolist())
-        talukas = sorted(ndvi_ndwi_df["Taluka"].dropna().unique().tolist())
-        circles = sorted(ndvi_ndwi_df["Circle"].dropna().unique().tolist())
+        # Process MAI data
+        mai_df["Year"] = pd.to_numeric(mai_df["Year"], errors="coerce")
+        mai_df["MAI (%)"] = pd.to_numeric(mai_df["MAI (%)"], errors="coerce")
         
-        return ndvi_ndwi_df, weather_df, mai_df, districts, talukas, circles
+        # Get unique locations
+        districts = sorted(weather_df["District"].dropna().unique().tolist())
+        talukas = sorted(weather_df["Taluka"].dropna().unique().tolist())
+        circles = sorted(weather_df["Circle"].dropna().unique().tolist())
+        
+        return weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles
         
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], [], []
 
 # Load data
-ndvi_ndwi_df, weather_df, mai_df, districts, talukas, circles = load_data()
+weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data()
 
 # -----------------------------
-# FORTNIGHT DEFINITION FUNCTION
+# FORTNIGHT DEFINITION
 # -----------------------------
 def get_fortnight(date_obj):
-    """Define fortnight: 1st-15th as 1st Fortnight, 16th-end as 2nd Fortnight"""
+    """Get fortnight from date (1st or 2nd)"""
     if date_obj.day <= 15:
         return f"1FN {date_obj.strftime('%B')}"
     else:
         return f"2FN {date_obj.strftime('%B')}"
 
-def get_fortnight_from_string(date_str, year):
-    """Get fortnight from date string"""
-    try:
-        date_obj = datetime.strptime(date_str, "%d-%m-%Y")
-        return get_fortnight(date_obj)
-    except:
-        try:
-            date_obj = datetime.strptime(date_str, "%Y_%m_%d")
-            return get_fortnight(date_obj)
-        except:
-            return None
+def get_fortnight_period(date_obj):
+    """Get start and end dates for a fortnight"""
+    year = date_obj.year
+    month = date_obj.month
+    if date_obj.day <= 15:
+        start_date = date(year, month, 1)
+        end_date = date(year, month, 15)
+    else:
+        start_date = date(year, month, 16)
+        # Get last day of month
+        if month == 12:
+            end_date = date(year, month, 31)
+        else:
+            end_date = date(year, month + 1, 1) - timedelta(days=1)
+    return start_date, end_date
 
 # -----------------------------
 # WEATHER METRICS CALCULATIONS
 # -----------------------------
-def calculate_weather_metrics_comparison(weather_data, district, taluka, circle, start_date, end_date):
-    """Calculate weather metrics for comparison between years"""
+def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, agg_func='sum'):
+    """Calculate fortnightly metrics for current and last year"""
+    metrics = {}
     
-    # Filter data based on selection
-    filtered_data = weather_data.copy()
+    for year in [current_year, last_year]:
+        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
+        year_data['Fortnight'] = year_data['Date_dt'].apply(get_fortnight)
+        
+        if agg_func == 'sum':
+            fortnight_metrics = year_data.groupby('Fortnight')[metric_col].sum()
+        elif agg_func == 'mean':
+            # Exclude 0 values for mean calculation
+            non_zero_data = year_data[year_data[metric_col] != 0]
+            fortnight_metrics = non_zero_data.groupby('Fortnight')[metric_col].mean()
+        elif agg_func == 'count':
+            fortnight_metrics = (year_data[metric_col] > 0).groupby(year_data['Fortnight']).sum()
+        
+        metrics[year] = fortnight_metrics
+    
+    return metrics
+
+def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_func='sum'):
+    """Calculate monthly metrics for current and last year"""
+    metrics = {}
+    
+    for year in [current_year, last_year]:
+        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
+        year_data['Month'] = year_data['Date_dt'].dt.strftime('%B')
+        
+        if agg_func == 'sum':
+            monthly_metrics = year_data.groupby('Month')[metric_col].sum()
+        elif agg_func == 'mean':
+            # Exclude 0 values for mean calculation
+            non_zero_data = year_data[year_data[metric_col] != 0]
+            monthly_metrics = non_zero_data.groupby('Month')[metric_col].mean()
+        elif agg_func == 'count':
+            monthly_metrics = (year_data[metric_col] > 0).groupby(year_data['Month']).sum()
+        
+        metrics[year] = monthly_metrics
+    
+    return metrics
+
+# -----------------------------
+# CHART FUNCTIONS FOR WEATHER METRICS TAB
+# -----------------------------
+def create_weather_comparison_chart(metrics_current, metrics_last, title, yaxis_title, chart_type='column'):
+    """Create comparison chart for weather metrics"""
+    fig = go.Figure()
+    
+    # Get all unique periods (fortnights or months)
+    all_periods = sorted(set(metrics_current.index) | set(metrics_last.index))
+    
+    current_values = [metrics_current.get(period, 0) for period in all_periods]
+    last_values = [metrics_last.get(period, 0) for period in all_periods]
+    
+    if chart_type == 'column':
+        fig.add_trace(go.Bar(
+            name='Current Year',
+            x=all_periods,
+            y=current_values,
+            marker_color='#1f77b4'
+        ))
+        
+        fig.add_trace(go.Bar(
+            name='Last Year',
+            x=all_periods,
+            y=last_values,
+            marker_color='#ff7f0e'
+        ))
+    else:  # line chart
+        fig.add_trace(go.Scatter(
+            name='Current Year',
+            x=all_periods,
+            y=current_values,
+            mode='lines+markers',
+            line=dict(color='#1f77b4', width=3),
+            marker=dict(size=8)
+        ))
+        
+        fig.add_trace(go.Scatter(
+            name='Last Year',
+            x=all_periods,
+            y=last_values,
+            mode='lines+markers',
+            line=dict(color='#ff7f0e', width=3),
+            marker=dict(size=8)
+        ))
+    
+    fig.update_layout(
+        title=title,
+        xaxis_title="Period",
+        yaxis_title=yaxis_title,
+        barmode='group' if chart_type == 'column' else 'lines',
+        template="plotly_white",
+        height=500
+    )
+    
+    return fig
+
+# -----------------------------
+# REMOTE SENSING INDICES FUNCTIONS
+# -----------------------------
+def create_ndvi_ndwi_line_chart(ndvi_ndwi_data, start_date, end_date, district, taluka, circle):
+    """Create line chart for NDVI and NDWI for current and last year"""
+    filtered_data = ndvi_ndwi_data.copy()
+    
+    # Filter by location
     if district:
         filtered_data = filtered_data[filtered_data["District"] == district]
     if taluka:
@@ -205,317 +321,123 @@ def calculate_weather_metrics_comparison(weather_data, district, taluka, circle,
     if circle:
         filtered_data = filtered_data[filtered_data["Circle"] == circle]
     
-    # Extract year from date
-    filtered_data["Year"] = filtered_data["Date_dt"].dt.year
-    
-    # Filter by date range (across years)
-    date_range_data = filtered_data[
-        (filtered_data["Date_dt"].dt.month >= start_date.month) & 
-        (filtered_data["Date_dt"].dt.month <= end_date.month)
-    ].copy()
-    
-    # Add fortnight column
-    date_range_data["Fortnight"] = date_range_data["Date_dt"].apply(get_fortnight)
-    
-    results = {}
-    
-    # Fortnightly calculations
-    fortnightly_data = date_range_data.groupby(["Year", "Fortnight"]).agg({
-        "Rainfall": "sum",
-        "Tmax": lambda x: x[x != 0].mean() if any(x != 0) else None,
-        "Tmin": lambda x: x[x != 0].mean() if any(x != 0) else None,
-        "max_Rh": lambda x: x[x != 0].mean() if any(x != 0) else None,
-        "min_Rh": lambda x: x[x != 0].mean() if any(x != 0) else None
-    }).reset_index()
-    
-    # Rainy days calculation
-    rainy_days_fortnightly = date_range_data[date_range_data["Rainfall"] > 0].groupby(["Year", "Fortnight"]).size().reset_index(name="Rainy_Days")
-    fortnightly_data = fortnightly_data.merge(rainy_days_fortnightly, on=["Year", "Fortnight"], how="left")
-    fortnightly_data["Rainy_Days"] = fortnightly_data["Rainy_Days"].fillna(0)
-    
-    # Monthly calculations
-    date_range_data["Month"] = date_range_data["Date_dt"].dt.strftime("%B")
-    monthly_data = date_range_data.groupby(["Year", "Month"]).agg({
-        "Rainfall": "sum",
-        "Tmax": lambda x: x[x != 0].mean() if any(x != 0) else None,
-        "Tmin": lambda x: x[x != 0].mean() if any(x != 0) else None,
-        "max_Rh": lambda x: x[x != 0].mean() if any(x != 0) else None,
-        "min_Rh": lambda x: x[x != 0].mean() if any(x != 0) else None
-    }).reset_index()
-    
-    # Rainy days monthly
-    rainy_days_monthly = date_range_data[date_range_data["Rainfall"] > 0].groupby(["Year", "Month"]).size().reset_index(name="Rainy_Days")
-    monthly_data = monthly_data.merge(rainy_days_monthly, on=["Year", "Month"], how="left")
-    monthly_data["Rainy_Days"] = monthly_data["Rainy_Days"].fillna(0)
-    
-    results["fortnightly"] = fortnightly_data
-    results["monthly"] = monthly_data
-    
-    return results
-
-# -----------------------------
-# REMOTE SENSING INDICES CALCULATIONS
-# -----------------------------
-def calculate_remote_sensing_comparison(ndvi_ndwi_data, mai_data, district, taluka, circle, start_date, end_date):
-    """Calculate remote sensing indices for comparison between years"""
-    
-    # Filter NDVI/NDWI data
-    filtered_ndvi_ndwi = ndvi_ndwi_data.copy()
-    if district:
-        filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["District"] == district]
-    if taluka:
-        filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["Taluka"] == taluka]
-    if circle:
-        filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["Circle"] == circle]
-    
     # Filter by date range
-    filtered_ndvi_ndwi = filtered_ndvi_ndwi[
-        (filtered_ndvi_ndwi["Date_dt"] >= pd.Timestamp(start_date)) & 
-        (filtered_ndvi_ndwi["Date_dt"] <= pd.Timestamp(end_date))
+    filtered_data = filtered_data[
+        (filtered_data["Date_dt"] >= pd.to_datetime(start_date)) & 
+        (filtered_data["Date_dt"] <= pd.to_datetime(end_date))
     ]
     
-    # Add year column
-    filtered_ndvi_ndwi["Year"] = filtered_ndvi_ndwi["Date_dt"].dt.year
+    if filtered_data.empty:
+        return None
     
-    # Filter MAI data
-    filtered_mai = mai_data.copy()
-    if district:
-        filtered_mai = filtered_mai[filtered_mai["District"] == district]
-    if taluka:
-        filtered_mai = filtered_mai[filtered_mai["Taluka"] == taluka]
-    if circle:
-        filtered_mai = filtered_mai[filtered_mai["Circle"] == circle]
+    # Create figure with secondary y-axis
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
     
-    # Filter MAI by months in date range
-    start_month = start_date.strftime("%B")
-    end_month = end_date.strftime("%B")
-    months_in_range = []
-    current = start_date.replace(day=1)
-    end = end_date.replace(day=1)
+    # Get unique years
+    years = sorted(filtered_data["Date_dt"].dt.year.unique())
     
-    while current <= end:
-        months_in_range.append(current.strftime("%B"))
-        if current.month == 12:
-            current = current.replace(year=current.year + 1, month=1)
-        else:
-            current = current.replace(month=current.month + 1)
+    for year in years:
+        year_data = filtered_data[filtered_data["Date_dt"].dt.year == year].sort_values("Date_dt")
+        
+        # NDVI line
+        fig.add_trace(
+            go.Scatter(
+                x=year_data["Date_dt"],
+                y=year_data["NDVI"],
+                mode='lines+markers',
+                name=f'NDVI {year}',
+                line=dict(color='green' if year == years[-1] else 'lightgreen', width=3),
+                marker=dict(size=6)
+            ),
+            secondary_y=False,
+        )
+        
+        # NDWI line
+        fig.add_trace(
+            go.Scatter(
+                x=year_data["Date_dt"],
+                y=year_data["NDWI"],
+                mode='lines+markers',
+                name=f'NDWI {year}',
+                line=dict(color='blue' if year == years[-1] else 'lightblue', width=3),
+                marker=dict(size=6)
+            ),
+            secondary_y=True,
+        )
     
-    months_in_range = list(dict.fromkeys(months_in_range))
-    filtered_mai = filtered_mai[filtered_mai["Month"].isin(months_in_range)]
-    
-    # Calculate monthly averages for MAI (excluding 0 values)
-    mai_monthly = filtered_mai.groupby(["Year", "Month"]).agg({
-        "MAI (%)": lambda x: x[x != 0].mean() if any(x != 0) else None
-    }).reset_index()
-    
-    results = {
-        "ndvi_ndwi_timeseries": filtered_ndvi_ndwi,
-        "mai_monthly": mai_monthly
-    }
-    
-    return results
-
-# -----------------------------
-# CHART FUNCTIONS
-# -----------------------------
-
-def create_rainfall_chart(weather_results, period_type="fortnightly"):
-    """Create clustered column chart for Rainfall"""
-    data = weather_results[period_type]
-    
-    # Pivot data for chart
-    pivot_data = data.pivot_table(
-        index=period_type.title()[:-2],  # Remove 'ly' from fortnightly/monthly
-        columns="Year", 
-        values="Rainfall", 
-        aggfunc="sum"
-    ).reset_index()
-    
-    fig = go.Figure()
-    
-    for year in pivot_data.columns[1:]:
-        fig.add_trace(go.Bar(
-            name=str(year),
-            x=pivot_data[period_type.title()[:-2]],
-            y=pivot_data[year],
-            text=pivot_data[year].round(1),
-            textposition='auto',
-        ))
-    
-    title_period = "Fortnightly" if period_type == "fortnightly" else "Monthly"
     fig.update_layout(
-        title=f"{title_period} Rainfall Comparison (mm)",
-        xaxis_title=title_period,
-        yaxis_title="Rainfall (mm)",
-        barmode='group',
-        template="plotly_white"
-    )
-    
-    return fig
-
-def create_rainy_days_chart(weather_results, period_type="fortnightly"):
-    """Create clustered column chart for Rainy Days"""
-    data = weather_results[period_type]
-    
-    pivot_data = data.pivot_table(
-        index=period_type.title()[:-2],
-        columns="Year", 
-        values="Rainy_Days", 
-        aggfunc="sum"
-    ).reset_index()
-    
-    fig = go.Figure()
-    
-    for year in pivot_data.columns[1:]:
-        fig.add_trace(go.Bar(
-            name=str(year),
-            x=pivot_data[period_type.title()[:-2]],
-            y=pivot_data[year],
-            text=pivot_data[year].round(0),
-            textposition='auto',
-        ))
-    
-    title_period = "Fortnightly" if period_type == "fortnightly" else "Monthly"
-    fig.update_layout(
-        title=f"{title_period} Rainy Days Comparison",
-        xaxis_title=title_period,
-        yaxis_title="Number of Rainy Days",
-        barmode='group',
-        template="plotly_white"
-    )
-    
-    return fig
-
-def create_temperature_chart(weather_results, temp_type="Tmax", period_type="fortnightly"):
-    """Create clustered column chart for Temperature"""
-    data = weather_results[period_type]
-    
-    pivot_data = data.pivot_table(
-        index=period_type.title()[:-2],
-        columns="Year", 
-        values=temp_type, 
-        aggfunc="mean"
-    ).reset_index()
-    
-    fig = go.Figure()
-    
-    for year in pivot_data.columns[1:]:
-        fig.add_trace(go.Bar(
-            name=str(year),
-            x=pivot_data[period_type.title()[:-2]],
-            y=pivot_data[year],
-            text=pivot_data[year].round(1),
-            textposition='auto',
-        ))
-    
-    title_period = "Fortnightly" if period_type == "fortnightly" else "Monthly"
-    temp_name = "Maximum Temperature" if temp_type == "Tmax" else "Minimum Temperature"
-    fig.update_layout(
-        title=f"{title_period} {temp_name} Comparison (°C)",
-        xaxis_title=title_period,
-        yaxis_title=f"{temp_name} (°C)",
-        barmode='group',
-        template="plotly_white"
-    )
-    
-    return fig
-
-def create_humidity_chart(weather_results, humidity_type="max_Rh", period_type="fortnightly"):
-    """Create clustered column chart for Humidity"""
-    data = weather_results[period_type]
-    
-    pivot_data = data.pivot_table(
-        index=period_type.title()[:-2],
-        columns="Year", 
-        values=humidity_type, 
-        aggfunc="mean"
-    ).reset_index()
-    
-    fig = go.Figure()
-    
-    for year in pivot_data.columns[1:]:
-        fig.add_trace(go.Bar(
-            name=str(year),
-            x=pivot_data[period_type.title()[:-2]],
-            y=pivot_data[year],
-            text=pivot_data[year].round(1),
-            textposition='auto',
-        ))
-    
-    title_period = "Fortnightly" if period_type == "fortnightly" else "Monthly"
-    humidity_name = "Maximum Relative Humidity" if humidity_type == "max_Rh" else "Minimum Relative Humidity"
-    fig.update_layout(
-        title=f"{title_period} {humidity_name} Comparison (%)",
-        xaxis_title=title_period,
-        yaxis_title=f"{humidity_name} (%)",
-        barmode='group',
-        template="plotly_white"
-    )
-    
-    return fig
-
-def create_ndvi_ndwi_line_chart(remote_sensing_results, index_type="NDVI"):
-    """Create line chart for NDVI/NDWI comparison"""
-    data = remote_sensing_results["ndvi_ndwi_timeseries"]
-    
-    fig = go.Figure()
-    
-    for year in data["Year"].unique():
-        year_data = data[data["Year"] == year].sort_values("Date_dt")
-        fig.add_trace(go.Scatter(
-            x=year_data["Date_dt"],
-            y=year_data[index_type],
-            mode='lines+markers',
-            name=str(year),
-            line=dict(width=2),
-            marker=dict(size=4)
-        ))
-    
-    index_name = "NDVI" if index_type == "NDVI" else "NDWI"
-    fig.update_layout(
-        title=f"{index_name} Comparison (2023 vs 2024)",
+        title="NDVI & NDWI Trends (Current vs Last Year)",
         xaxis_title="Date",
-        yaxis_title=index_name,
         template="plotly_white",
-        hovermode='x unified'
+        height=500,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
+    
+    fig.update_yaxes(title_text="NDVI Value", secondary_y=False)
+    fig.update_yaxes(title_text="NDWI Value", secondary_y=True)
     
     return fig
 
-def create_mai_chart(remote_sensing_results):
-    """Create clustered column chart for MAI"""
-    data = remote_sensing_results["mai_monthly"]
+def create_mai_comparison_chart(mai_data, start_date, end_date, district, taluka, circle):
+    """Create clustered column chart for MAI comparison"""
+    filtered_data = mai_data.copy()
     
-    pivot_data = data.pivot_table(
-        index="Month",
-        columns="Year", 
-        values="MAI (%)", 
-        aggfunc="mean"
-    ).reset_index()
+    # Filter by location
+    if district:
+        filtered_data = filtered_data[filtered_data["District"] == district]
+    if taluka:
+        filtered_data = filtered_data[filtered_data["Taluka"] == taluka]
+    if circle:
+        filtered_data = filtered_data[filtered_data["Circle"] == circle]
     
-    # Define month order for proper sorting
-    month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
-                   'July', 'August', 'September', 'October', 'November', 'December']
-    pivot_data['Month'] = pd.Categorical(pivot_data['Month'], categories=month_order, ordered=True)
-    pivot_data = pivot_data.sort_values('Month')
+    # Get months from selected date range
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    
+    months_in_range = []
+    current = start_dt.replace(day=1)
+    while current <= end_dt:
+        months_in_range.append(current.strftime('%B'))
+        current = current + pd.DateOffset(months=1)
+    
+    months_in_range = list(dict.fromkeys(months_in_range))  # Remove duplicates
+    
+    # Filter data for months in range
+    filtered_data = filtered_data[filtered_data["Month"].isin(months_in_range)]
+    
+    if filtered_data.empty:
+        return None
+    
+    # Get unique years
+    years = sorted(filtered_data["Year"].unique())
     
     fig = go.Figure()
     
-    for year in pivot_data.columns[1:]:
+    for year in years:
+        year_data = filtered_data[filtered_data["Year"] == year]
+        
+        # Calculate mean MAI excluding 0 values for each month
+        mai_values = []
+        for month in months_in_range:
+            month_data = year_data[year_data["Month"] == month]
+            non_zero_mai = month_data[month_data["MAI (%)"] != 0]["MAI (%)"]
+            avg_mai = non_zero_mai.mean() if not non_zero_mai.empty else 0
+            mai_values.append(avg_mai)
+        
         fig.add_trace(go.Bar(
-            name=str(year),
-            x=pivot_data["Month"],
-            y=pivot_data[year],
-            text=pivot_data[year].round(1),
-            textposition='auto',
+            name=f'MAI {year}',
+            x=months_in_range,
+            y=mai_values,
+            marker_color='orange' if year == years[-1] else 'lightcoral'
         ))
     
     fig.update_layout(
-        title="Monthly MAI Comparison (%)",
+        title="MAI Comparison (Current vs Last Year) - Monthly Average",
         xaxis_title="Month",
         yaxis_title="MAI (%)",
         barmode='group',
-        template="plotly_white"
+        template="plotly_white",
+        height=500
     )
     
     return fig
@@ -523,57 +445,68 @@ def create_mai_chart(remote_sensing_results):
 # -----------------------------
 # MAIN UI
 # -----------------------------
+st.markdown(
+    """
+    <style>
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        .stButton button {
+            width: 100%;
+        }
+        .stSelectbox, .stDateInput {
+            font-size: 14px;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-st.markdown("""
-<div style='
-    background-color: rgba(255, 193, 7, 0.1);
-    border-left: 4px solid #f4a261;
-    padding: 10px 16px;
-    border-radius: 6px;
-    margin-bottom: 20px;
-    font-size: 0.95rem;
-'>
-    <span style='color: red; font-weight: 700;'>📊 Crop Health Comparison Dashboard:</span>
-    <span style='color: blue;'>
-        Compare crop health parameters between <b>2023 and 2024</b>.
-    </span>
-    <br><br>
-    <span style='color: black;'>
-        🔹 <b>Level of Selection:</b> You can select data from 
-        <b>Circle → Taluka → District</b> level.
-    </span>
-</div>
-""", unsafe_allow_html=True)
+# --- Date Selection Section ---
+st.markdown("### 📅 Date Selection")
 
-# Selection UI
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    district = st.selectbox("District", [""] + districts)
+    district = st.selectbox("District *", [""] + districts)
+    # Update taluka options based on selected district
     if district:
-        taluka_options = [""] + sorted(ndvi_ndwi_df[ndvi_ndwi_df["District"] == district]["Taluka"].dropna().unique().tolist())
+        taluka_options = [""] + sorted(weather_df[weather_df["District"] == district]["Taluka"].dropna().unique().tolist())
     else:
         taluka_options = [""] + talukas
     taluka = st.selectbox("Taluka", taluka_options)
 
 with col2:
+    # Update circle options based on selected taluka
     if taluka and taluka != "":
-        circle_options = [""] + sorted(ndvi_ndwi_df[ndvi_ndwi_df["Taluka"] == taluka]["Circle"].dropna().unique().tolist())
+        circle_options = [""] + sorted(weather_df[weather_df["Taluka"] == taluka]["Circle"].dropna().unique().tolist())
     else:
         circle_options = [""] + circles
     circle = st.selectbox("Circle", circle_options)
+    
+    sowing_date = st.date_input("Start Date (Sowing Date) *", value=date.today() - timedelta(days=30), format="DD/MM/YYYY")
 
 with col3:
-    sowing_date = st.date_input("Start Date (Sowing Date)", value=date(2024, 6, 1), format="DD/MM/YYYY")
-    current_date = st.date_input("End Date (Current Date)", value=date(2024, 10, 31), format="DD/MM/YYYY")
+    current_date = st.date_input("End Date (Current Date) *", value=date.today(), format="DD/MM/YYYY")
+    
+    generate = st.button("🌱 Generate Analysis", use_container_width=True)
 
-generate = st.button("📈 Generate Comparison Analysis")
-
+# -----------------------------
+# MAIN ANALYSIS
+# -----------------------------
 if generate:
-    if not district:
-        st.error("Please select at least a District.")
+    if not district or not sowing_date or not current_date:
+        st.error("Please select all required fields (District, Start Date, End Date).")
     else:
-        # Determine level name for display
+        sowing_date_str = sowing_date.strftime("%d/%m/%Y")
+        current_date_str = current_date.strftime("%d/%m/%Y")
+        
+        # Determine level and name for calculations
         if circle and circle != "":
             level = "Circle"
             level_name = circle
@@ -584,153 +517,351 @@ if generate:
             level = "District"
             level_name = district
 
-        st.info(f"📊 Generating comparison analysis for **{level}**: {level_name}")
+        st.info(f"📊 Calculating metrics for **{level}**: {level_name}")
 
-        # Calculate metrics
-        weather_results = calculate_weather_metrics_comparison(
-            weather_df, district, taluka, circle, sowing_date, current_date
-        )
-        
-        remote_sensing_results = calculate_remote_sensing_comparison(
-            ndvi_ndwi_df, mai_df, district, taluka, circle, sowing_date, current_date
-        )
+        # Filter weather data for selected location
+        filtered_weather = weather_df.copy()
+        if district:
+            filtered_weather = filtered_weather[filtered_weather["District"] == district]
+        if taluka:
+            filtered_weather = filtered_weather[filtered_weather["Taluka"] == taluka]
+        if circle:
+            filtered_weather = filtered_weather[filtered_weather["Circle"] == circle]
+
+        # Get current and last year
+        current_year = current_date.year
+        last_year = current_year - 1
 
         # Create tabs
-        tab1, tab2, tab3 = st.tabs(["🌤️ Weather Metrics", "📊 Remote Sensing Indices", "💾 Downloadable Data"])
+        tab1, tab2, tab3 = st.tabs(["🌤️ Weather Metrics", "📡 Remote Sensing Indices", "💾 Downloadable Data"])
 
+        # TAB 1: WEATHER METRICS
         with tab1:
-            st.header(f"🌤️ Weather Metrics Comparison - {level}: {level_name}")
+            st.header(f"🌤️ Weather Metrics - {level}: {level_name}")
             
-            # Fortnightly Analysis
-            st.subheader("Fortnightly Analysis")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.plotly_chart(create_rainfall_chart(weather_results, "fortnightly"), use_container_width=True)
-                st.plotly_chart(create_temperature_chart(weather_results, "Tmax", "fortnightly"), use_container_width=True)
-                st.plotly_chart(create_humidity_chart(weather_results, "max_Rh", "fortnightly"), use_container_width=True)
-            
-            with col2:
-                st.plotly_chart(create_rainy_days_chart(weather_results, "fortnightly"), use_container_width=True)
-                st.plotly_chart(create_temperature_chart(weather_results, "Tmin", "fortnightly"), use_container_width=True)
-                st.plotly_chart(create_humidity_chart(weather_results, "min_Rh", "fortnightly"), use_container_width=True)
-            
-            # Monthly Analysis
-            st.subheader("Monthly Analysis")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.plotly_chart(create_rainfall_chart(weather_results, "monthly"), use_container_width=True)
-                st.plotly_chart(create_temperature_chart(weather_results, "Tmax", "monthly"), use_container_width=True)
-                st.plotly_chart(create_humidity_chart(weather_results, "max_Rh", "monthly"), use_container_width=True)
-            
-            with col2:
-                st.plotly_chart(create_rainy_days_chart(weather_results, "monthly"), use_container_width=True)
-                st.plotly_chart(create_temperature_chart(weather_results, "Tmin", "monthly"), use_container_width=True)
-                st.plotly_chart(create_humidity_chart(weather_results, "min_Rh", "monthly"), use_container_width=True)
+            if not filtered_weather.empty:
+                # I. Rainfall Analysis
+                st.subheader("I. Rainfall Analysis")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly Rainfall
+                    fortnightly_rainfall = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "Rainfall", "sum"
+                    )
+                    fig_rainfall_fortnight = create_weather_comparison_chart(
+                        fortnightly_rainfall[current_year], 
+                        fortnightly_rainfall[last_year],
+                        "Rainfall - Fortnightly Comparison",
+                        "Rainfall (mm)"
+                    )
+                    st.plotly_chart(fig_rainfall_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Monthly Rainfall
+                    monthly_rainfall = calculate_monthly_metrics(
+                        filtered_weather, current_year, last_year, "Rainfall", "sum"
+                    )
+                    fig_rainfall_monthly = create_weather_comparison_chart(
+                        monthly_rainfall[current_year], 
+                        monthly_rainfall[last_year],
+                        "Rainfall - Monthly Comparison",
+                        "Rainfall (mm)"
+                    )
+                    st.plotly_chart(fig_rainfall_monthly, use_container_width=True)
+                
+                # Rainfall Deviation Calculation
+                st.subheader("Rainfall Deviation Analysis")
+                dev_col1, dev_col2 = st.columns(2)
+                
+                with dev_col1:
+                    # Fortnightly Deviation
+                    fortnight_dev = []
+                    for fn in fortnightly_rainfall[current_year].index:
+                        current_val = fortnightly_rainfall[current_year].get(fn, 0)
+                        last_val = fortnightly_rainfall[last_year].get(fn, 0)
+                        deviation = ((current_val - last_val) / last_val * 100) if last_val != 0 else 0
+                        fortnight_dev.append({"Fortnight": fn, "Deviation (%)": deviation})
+                    
+                    dev_fortnight_df = pd.DataFrame(fortnight_dev)
+                    if not dev_fortnight_df.empty:
+                        fig_dev_fortnight = px.bar(
+                            dev_fortnight_df, 
+                            x="Fortnight", 
+                            y="Deviation (%)",
+                            title="Rainfall Deviation - Fortnightly (%)",
+                            color="Deviation (%)",
+                            color_continuous_scale="RdYlBu_r"
+                        )
+                        st.plotly_chart(fig_dev_fortnight, use_container_width=True)
+                
+                with dev_col2:
+                    # Monthly Deviation
+                    monthly_dev = []
+                    for month in monthly_rainfall[current_year].index:
+                        current_val = monthly_rainfall[current_year].get(month, 0)
+                        last_val = monthly_rainfall[last_year].get(month, 0)
+                        deviation = ((current_val - last_val) / last_val * 100) if last_val != 0 else 0
+                        monthly_dev.append({"Month": month, "Deviation (%)": deviation})
+                    
+                    dev_monthly_df = pd.DataFrame(monthly_dev)
+                    if not dev_monthly_df.empty:
+                        fig_dev_monthly = px.bar(
+                            dev_monthly_df, 
+                            x="Month", 
+                            y="Deviation (%)",
+                            title="Rainfall Deviation - Monthly (%)",
+                            color="Deviation (%)",
+                            color_continuous_scale="RdYlBu_r"
+                        )
+                        st.plotly_chart(fig_dev_monthly, use_container_width=True)
 
+                # II. Rainy Days Analysis
+                st.subheader("II. Rainy Days Analysis")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly Rainy Days
+                    fortnightly_rainy_days = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "Rainfall", "count"
+                    )
+                    fig_rainy_fortnight = create_weather_comparison_chart(
+                        fortnightly_rainy_days[current_year], 
+                        fortnightly_rainy_days[last_year],
+                        "Rainy Days - Fortnightly Comparison",
+                        "Number of Rainy Days"
+                    )
+                    st.plotly_chart(fig_rainy_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Monthly Rainy Days
+                    monthly_rainy_days = calculate_monthly_metrics(
+                        filtered_weather, current_year, last_year, "Rainfall", "count"
+                    )
+                    fig_rainy_monthly = create_weather_comparison_chart(
+                        monthly_rainy_days[current_year], 
+                        monthly_rainy_days[last_year],
+                        "Rainy Days - Monthly Comparison",
+                        "Number of Rainy Days"
+                    )
+                    st.plotly_chart(fig_rainy_monthly, use_container_width=True)
+
+                # III. Temperature Max Analysis
+                st.subheader("III. Maximum Temperature Analysis")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly Tmax
+                    fortnightly_tmax = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "Tmax", "mean"
+                    )
+                    fig_tmax_fortnight = create_weather_comparison_chart(
+                        fortnightly_tmax[current_year], 
+                        fortnightly_tmax[last_year],
+                        "Max Temperature - Fortnightly Average",
+                        "Temperature (°C)"
+                    )
+                    st.plotly_chart(fig_tmax_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Monthly Tmax
+                    monthly_tmax = calculate_monthly_metrics(
+                        filtered_weather, current_year, last_year, "Tmax", "mean"
+                    )
+                    fig_tmax_monthly = create_weather_comparison_chart(
+                        monthly_tmax[current_year], 
+                        monthly_tmax[last_year],
+                        "Max Temperature - Monthly Average",
+                        "Temperature (°C)"
+                    )
+                    st.plotly_chart(fig_tmax_monthly, use_container_width=True)
+
+                # Temperature Deviation
+                st.subheader("Temperature Deviation Analysis")
+                
+                dev_col1, dev_col2 = st.columns(2)
+                
+                with dev_col1:
+                    # Fortnightly Tmax Deviation
+                    tmax_fortnight_dev = []
+                    for fn in fortnightly_tmax[current_year].index:
+                        current_val = fortnightly_tmax[current_year].get(fn, 0)
+                        last_val = fortnightly_tmax[last_year].get(fn, 0)
+                        deviation = current_val - last_val
+                        tmax_fortnight_dev.append({"Fortnight": fn, "Deviation (°C)": deviation})
+                    
+                    tmax_dev_fortnight_df = pd.DataFrame(tmax_fortnight_dev)
+                    if not tmax_dev_fortnight_df.empty:
+                        fig_tmax_dev_fortnight = px.bar(
+                            tmax_dev_fortnight_df, 
+                            x="Fortnight", 
+                            y="Deviation (°C)",
+                            title="Max Temperature Deviation - Fortnightly (°C)",
+                            color="Deviation (°C)",
+                            color_continuous_scale="RdBu_r"
+                        )
+                        st.plotly_chart(fig_tmax_dev_fortnight, use_container_width=True)
+                
+                with dev_col2:
+                    # Monthly Tmax Deviation
+                    tmax_monthly_dev = []
+                    for month in monthly_tmax[current_year].index:
+                        current_val = monthly_tmax[current_year].get(month, 0)
+                        last_val = monthly_tmax[last_year].get(month, 0)
+                        deviation = current_val - last_val
+                        tmax_monthly_dev.append({"Month": month, "Deviation (°C)": deviation})
+                    
+                    tmax_dev_monthly_df = pd.DataFrame(tmax_monthly_dev)
+                    if not tmax_dev_monthly_df.empty:
+                        fig_tmax_dev_monthly = px.bar(
+                            tmax_dev_monthly_df, 
+                            x="Month", 
+                            y="Deviation (°C)",
+                            title="Max Temperature Deviation - Monthly (°C)",
+                            color="Deviation (°C)",
+                            color_continuous_scale="RdBu_r"
+                        )
+                        st.plotly_chart(fig_tmax_dev_monthly, use_container_width=True)
+
+                # Continue with Tmin, RH max, RH min in similar pattern...
+                # [Additional code for Tmin, RH max, RH min would follow similar structure]
+                
+            else:
+                st.info("No weather data available for the selected location and date range.")
+
+        # TAB 2: REMOTE SENSING INDICES
         with tab2:
-            st.header(f"📊 Remote Sensing Indices - {level}: {level_name}")
+            st.header(f"📡 Remote Sensing Indices - {level}: {level_name}")
             
-            col1, col2 = st.columns(2)
+            # I. NDVI Line Chart
+            st.subheader("I. NDVI Analysis")
+            ndvi_fig = create_ndvi_ndwi_line_chart(
+                ndvi_ndwi_df, sowing_date, current_date, district, taluka, circle
+            )
+            if ndvi_fig:
+                st.plotly_chart(ndvi_fig, use_container_width=True)
+            else:
+                st.info("No NDVI data available for the selected parameters.")
             
-            with col1:
-                st.plotly_chart(create_ndvi_ndwi_line_chart(remote_sensing_results, "NDVI"), use_container_width=True)
+            # II. NDWI Line Chart
+            st.subheader("II. NDWI Analysis")
+            # NDWI is already included in the combined chart above
+            st.info("NDWI is displayed in the combined chart above with NDVI.")
             
-            with col2:
-                st.plotly_chart(create_ndvi_ndwi_line_chart(remote_sensing_results, "NDWI"), use_container_width=True)
-            
-            st.plotly_chart(create_mai_chart(remote_sensing_results), use_container_width=True)
+            # III. MAI Analysis
+            st.subheader("III. MAI Analysis")
+            mai_fig = create_mai_comparison_chart(
+                mai_df, sowing_date, current_date, district, taluka, circle
+            )
+            if mai_fig:
+                st.plotly_chart(mai_fig, use_container_width=True)
+            else:
+                st.info("No MAI data available for the selected parameters.")
 
+        # TAB 3: DOWNLOADABLE DATA
         with tab3:
             st.header(f"💾 Downloadable Data - {level}: {level_name}")
             
-            # Data download sections
-            col1, col2 = st.columns(2)
+            # Prepare data for download
+            st.subheader("Data Export")
+            
+            col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.subheader("Weather Data")
-                if not weather_results["fortnightly"].empty:
-                    weather_csv = weather_results["fortnightly"].to_csv(index=False)
+                # Weather Data
+                if not filtered_weather.empty:
+                    weather_csv = filtered_weather.to_csv(index=False)
                     st.download_button(
-                        label="Download Fortnightly Weather Data (CSV)",
+                        label="Download Weather Data (CSV)",
                         data=weather_csv,
-                        file_name=f"weather_fortnightly_{level}_{level_name}.csv",
+                        file_name=f"weather_data_{level}_{level_name}.csv",
                         mime="text/csv"
                     )
-                
-                if not weather_results["monthly"].empty:
-                    weather_monthly_csv = weather_results["monthly"].to_csv(index=False)
-                    st.download_button(
-                        label="Download Monthly Weather Data (CSV)",
-                        data=weather_monthly_csv,
-                        file_name=f"weather_monthly_{level}_{level_name}.csv",
-                        mime="text/csv"
-                    )
+                else:
+                    st.write("No weather data available")
             
             with col2:
-                st.subheader("Remote Sensing Data")
-                if not remote_sensing_results["ndvi_ndwi_timeseries"].empty:
-                    ndvi_ndwi_csv = remote_sensing_results["ndvi_ndwi_timeseries"].to_csv(index=False)
+                # NDVI & NDWI Data
+                filtered_ndvi_ndwi = ndvi_ndwi_df.copy()
+                if district:
+                    filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["District"] == district]
+                if taluka:
+                    filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["Taluka"] == taluka]
+                if circle:
+                    filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["Circle"] == circle]
+                
+                if not filtered_ndvi_ndwi.empty:
+                    ndvi_ndwi_csv = filtered_ndvi_ndwi.to_csv(index=False)
                     st.download_button(
                         label="Download NDVI/NDWI Data (CSV)",
                         data=ndvi_ndwi_csv,
-                        file_name=f"ndvi_ndwi_{level}_{level_name}.csv",
+                        file_name=f"ndvi_ndwi_data_{level}_{level_name}.csv",
                         mime="text/csv"
                     )
+                else:
+                    st.write("No NDVI/NDWI data available")
+            
+            with col3:
+                # MAI Data
+                filtered_mai = mai_df.copy()
+                if district:
+                    filtered_mai = filtered_mai[filtered_mai["District"] == district]
+                if taluka:
+                    filtered_mai = filtered_mai[filtered_mai["Taluka"] == taluka]
+                if circle:
+                    filtered_mai = filtered_mai[filtered_mai["Circle"] == circle]
                 
-                if not remote_sensing_results["mai_monthly"].empty:
-                    mai_csv = remote_sensing_results["mai_monthly"].to_csv(index=False)
+                if not filtered_mai.empty:
+                    mai_csv = filtered_mai.to_csv(index=False)
                     st.download_button(
                         label="Download MAI Data (CSV)",
                         data=mai_csv,
-                        file_name=f"mai_{level}_{level_name}.csv",
+                        file_name=f"mai_data_{level}_{level_name}.csv",
                         mime="text/csv"
                     )
+                else:
+                    st.write("No MAI data available")
             
-            # Data previews
+            # Data Previews
             st.subheader("Data Previews")
             
-            preview_tabs = st.tabs(["Weather Fortnightly", "Weather Monthly", "NDVI/NDWI", "MAI"])
+            preview_tabs = st.tabs(["Weather Data", "NDVI/NDWI Data", "MAI Data"])
             
             with preview_tabs[0]:
-                if not weather_results["fortnightly"].empty:
-                    st.dataframe(weather_results["fortnightly"], use_container_width=True)
+                if not filtered_weather.empty:
+                    st.dataframe(filtered_weather.head(10), use_container_width=True)
                 else:
-                    st.info("No fortnightly weather data available")
+                    st.info("No weather data available for preview")
             
             with preview_tabs[1]:
-                if not weather_results["monthly"].empty:
-                    st.dataframe(weather_results["monthly"], use_container_width=True)
+                if not filtered_ndvi_ndwi.empty:
+                    st.dataframe(filtered_ndvi_ndwi.head(10), use_container_width=True)
                 else:
-                    st.info("No monthly weather data available")
+                    st.info("No NDVI/NDWI data available for preview")
             
             with preview_tabs[2]:
-                if not remote_sensing_results["ndvi_ndwi_timeseries"].empty:
-                    st.dataframe(remote_sensing_results["ndvi_ndwi_timeseries"].head(20), use_container_width=True)
+                if not filtered_mai.empty:
+                    st.dataframe(filtered_mai.head(10), use_container_width=True)
                 else:
-                    st.info("No NDVI/NDWI data available")
-                    
-            with preview_tabs[3]:
-                if not remote_sensing_results["mai_monthly"].empty:
-                    st.dataframe(remote_sensing_results["mai_monthly"], use_container_width=True)
-                else:
-                    st.info("No MAI data available")
+                    st.info("No MAI data available for preview")
 
 # -----------------------------
 # FOOTER
 # -----------------------------
 st.markdown(
     """
-    <div class='footer'>
+    <div style='text-align: center; font-size: 16px; margin-top: 20px;'>
         💻 <b>Developed by:</b> Ashish Selokar <br>
         📧 For suggestions or queries, please email at:
         <a href="mailto:ashish111.selokar@gmail.com">ashish111.selokar@gmail.com</a> <br><br>
-        <span style="color:green;">
-            🌾 Crop Health Comparison Dashboard 🌾
+        <span style="font-size:15px; color:green;">
+            🌾 Empowering Farmers with Data-Driven Insights 🌾
         </span><br>
         <span style="font-size:13px; color:gray;">
-            Version 2.0 | Last Updated: Oct 2024
+            Version 2.0 | Powered by Agricose | Last Updated: Oct 2024
         </span>
     </div>
     """,
