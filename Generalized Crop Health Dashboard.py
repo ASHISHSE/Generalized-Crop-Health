@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from PIL import Image
-from google.colab import drive
+import drive
 drive.mount('/content/drive')
 
 # --- Page Config --- 
@@ -923,4 +923,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
