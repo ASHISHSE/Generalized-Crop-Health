@@ -561,39 +561,49 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Selection columns
+
+
 col1, col2, col3 = st.columns(3)
 
 with col1:
     # Level selection
     level = st.selectbox("Select Level", ["Circle", "Taluka", "District"])
     
-    # Dynamic options based on selected level
-    if level == "Circle" and ndvi_ndwi_processed is not None:
-        circle_options = [""] + sorted(ndvi_ndwi_processed['Circle'].dropna().unique().tolist())
-        selected_circle = st.selectbox("Select Circle", circle_options)
-        circle_code = ndvi_ndwi_processed[ndvi_ndwi_processed['Circle'] == selected_circle]['Circle'].iloc[0] if selected_circle else ""
-    elif level == "Taluka" and ndvi_ndwi_processed is not None:
-        taluka_options = [""] + sorted(ndvi_ndwi_processed['Taluka'].dropna().unique().tolist())
-        selected_taluka = st.selectbox("Select Taluka", taluka_options)
-        # For demonstration, using first circle code in taluka
-        if selected_taluka:
-            circle_code = ndvi_ndwi_processed[ndvi_ndwi_processed['Taluka'] == selected_taluka]['Circle'].iloc[0]
+    circle_code = ""
+    
+    # Check if data is available
+    if ndvi_ndwi_processed is not None and not ndvi_ndwi_processed.empty:
+        
+        if level == "Circle" and "Circle" in ndvi_ndwi_processed.columns:
+            circle_options = [""] + sorted(ndvi_ndwi_processed['Circle'].dropna().unique().tolist())
+            selected_circle = st.selectbox("Select Circle", circle_options)
+            if selected_circle:
+                circle_code = ndvi_ndwi_processed.loc[
+                    ndvi_ndwi_processed['Circle'] == selected_circle, 'Circle'
+                ].iloc[0]
+
+        elif level == "Taluka" and "Taluka" in ndvi_ndwi_processed.columns:
+            taluka_options = [""] + sorted(ndvi_ndwi_processed['Taluka'].dropna().unique().tolist())
+            selected_taluka = st.selectbox("Select Taluka", taluka_options)
+            if selected_taluka and "Circle" in ndvi_ndwi_processed.columns:
+                circle_code = ndvi_ndwi_processed.loc[
+                    ndvi_ndwi_processed['Taluka'] == selected_taluka, 'Circle'
+                ].iloc[0]
+
+        elif level == "District" and "District" in ndvi_ndwi_processed.columns:
+            district_options = [""] + sorted(ndvi_ndwi_processed['District'].dropna().unique().tolist())
+            selected_district = st.selectbox("Select District", district_options)
+            if selected_district and "Circle" in ndvi_ndwi_processed.columns:
+                circle_code = ndvi_ndwi_processed.loc[
+                    ndvi_ndwi_processed['District'] == selected_district, 'Circle'
+                ].iloc[0]
         else:
-            circle_code = ""
-    elif level == "District" and ndvi_ndwi_processed is not None:
-        district_options = [""] + sorted(ndvi_ndwi_processed['District'].dropna().unique().tolist())
-        selected_district = st.selectbox("Select District", district_options)
-        # For demonstration, using first circle code in district
-        if selected_district:
-            circle_code = ndvi_ndwi_processed[ndvi_ndwi_processed['District'] == selected_district]['Circle'].iloc[0]
-        else:
-            circle_code = ""
+            st.warning(f"Selected level '{level}' not found in data columns.")
     else:
-        circle_code = ""
+        st.warning("NDVI/NDWI data not loaded or empty.")
 
 with col2:
-    # Date selection (replaced Start & End with Sowing Date & Current Date)
+    # Date selection
     sowing_date = st.date_input("Sowing Date", value=date(2024, 1, 1))
     current_date = st.date_input("Current Date", value=date.today())
 
@@ -601,13 +611,15 @@ with col3:
     # Analysis type
     analysis_type = st.selectbox("Analysis Type", ["Fortnightly", "Monthly"])
     
-    # Month selection for MAI analysis
-    if mai_processed is not None:
-        available_months = sorted(mai_processed['Month'].dropna().unique())
+    if mai_processed is not None and not mai_processed.empty and "Month" in mai_processed.columns:
+        available_months = sorted(mai_processed['Month'].dropna().unique().tolist())
         selected_months = st.multiselect("Select Months for MAI Analysis", available_months, default=available_months[:3])
+    else:
+        st.warning("MAI data not available or missing 'Month' column.")
 
 # Generate button
 generate = st.button("📊 Generate Analysis")
+
 
 # -----------------------------
 # MAIN ANALYSIS LOGIC
@@ -838,6 +850,7 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
 
 
 
