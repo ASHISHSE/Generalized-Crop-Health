@@ -521,7 +521,422 @@ if generate:
                     )
                     st.plotly_chart(fig_rainfall_monthly, use_container_width=True)
                 
-                # [Continue with all other weather metrics as before...]
+                # Rainfall Deviation
+                st.subheader("Rainfall Deviation")
+                dev_col1, dev_col2 = st.columns(2)
+                
+                with dev_col1:
+                    # Fortnightly Deviation
+                    fig_rainfall_dev_fortnight = create_deviation_chart(
+                        fortnightly_rainfall[current_year], 
+                        fortnightly_rainfall[last_year],
+                        "Rainfall Deviation - Fortnightly (%)",
+                        "Deviation (%)"
+                    )
+                    st.plotly_chart(fig_rainfall_dev_fortnight, use_container_width=True)
+                
+                with dev_col2:
+                    # Monthly Deviation
+                    fig_rainfall_dev_monthly = create_deviation_chart(
+                        monthly_rainfall[current_year], 
+                        monthly_rainfall[last_year],
+                        "Rainfall Deviation - Monthly (%)",
+                        "Deviation (%)"
+                    )
+                    st.plotly_chart(fig_rainfall_dev_monthly, use_container_width=True)
 
-# [Rest of the code remains the same...]
+                # II. Rainy Days Analysis
+                st.subheader("II. Rainy Days Analysis")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly Rainy Days
+                    fortnightly_rainy_days = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "Rainfall", "count"
+                    )
+                    fig_rainy_fortnight = create_weather_comparison_chart(
+                        fortnightly_rainy_days[current_year], 
+                        fortnightly_rainy_days[last_year],
+                        "Rainy Days - Fortnightly Comparison",
+                        "Number of Rainy Days"
+                    )
+                    st.plotly_chart(fig_rainy_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Monthly Rainy Days
+                    monthly_rainy_days = calculate_monthly_metrics(
+                        filtered_weather, current_year, last_year, "Rainfall", "count"
+                    )
+                    fig_rainy_monthly = create_weather_comparison_chart(
+                        monthly_rainy_days[current_year], 
+                        monthly_rainy_days[last_year],
+                        "Rainy Days - Monthly Comparison",
+                        "Number of Rainy Days"
+                    )
+                    st.plotly_chart(fig_rainy_monthly, use_container_width=True)
+
+                # III. Maximum Temperature Analysis
+                st.subheader("III. Maximum Temperature Analysis")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly Tmax
+                    fortnightly_tmax = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "Tmax", "mean"
+                    )
+                    fig_tmax_fortnight = create_weather_comparison_chart(
+                        fortnightly_tmax[current_year], 
+                        fortnightly_tmax[last_year],
+                        "Max Temperature - Fortnightly Average",
+                        "Temperature (°C)"
+                    )
+                    st.plotly_chart(fig_tmax_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Monthly Tmax
+                    monthly_tmax = calculate_monthly_metrics(
+                        filtered_weather, current_year, last_year, "Tmax", "mean"
+                    )
+                    fig_tmax_monthly = create_weather_comparison_chart(
+                        monthly_tmax[current_year], 
+                        monthly_tmax[last_year],
+                        "Max Temperature - Monthly Average",
+                        "Temperature (°C)"
+                    )
+                    st.plotly_chart(fig_tmax_monthly, use_container_width=True)
+                
+                # Tmax Deviation
+                st.subheader("Max Temperature Deviation")
+                dev_col1, dev_col2 = st.columns(2)
+                
+                with dev_col1:
+                    # Fortnightly Tmax Deviation
+                    fig_tmax_dev_fortnight = create_deviation_chart(
+                        fortnightly_tmax[current_year], 
+                        fortnightly_tmax[last_year],
+                        "Max Temperature Deviation - Fortnightly",
+                        "Deviation (°C)"
+                    )
+                    st.plotly_chart(fig_tmax_dev_fortnight, use_container_width=True)
+                
+                with dev_col2:
+                    # Monthly Tmax Deviation
+                    fig_tmax_dev_monthly = create_deviation_chart(
+                        monthly_tmax[current_year], 
+                        monthly_tmax[last_year],
+                        "Max Temperature Deviation - Monthly",
+                        "Deviation (°C)"
+                    )
+                    st.plotly_chart(fig_tmax_dev_monthly, use_container_width=True)
+
+                # IV. Minimum Temperature Analysis
+                st.subheader("IV. Minimum Temperature Analysis")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly Tmin
+                    fortnightly_tmin = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "Tmin", "mean"
+                    )
+                    fig_tmin_fortnight = create_weather_comparison_chart(
+                        fortnightly_tmin[current_year], 
+                        fortnightly_tmin[last_year],
+                        "Min Temperature - Fortnightly Average",
+                        "Temperature (°C)"
+                    )
+                    st.plotly_chart(fig_tmin_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Monthly Tmin
+                    monthly_tmin = calculate_monthly_metrics(
+                        filtered_weather, current_year, last_year, "Tmin", "mean"
+                    )
+                    fig_tmin_monthly = create_weather_comparison_chart(
+                        monthly_tmin[current_year], 
+                        monthly_tmin[last_year],
+                        "Min Temperature - Monthly Average",
+                        "Temperature (°C)"
+                    )
+                    st.plotly_chart(fig_tmin_monthly, use_container_width=True)
+                
+                # Tmin Deviation
+                st.subheader("Min Temperature Deviation")
+                dev_col1, dev_col2 = st.columns(2)
+                
+                with dev_col1:
+                    # Fortnightly Tmin Deviation
+                    fig_tmin_dev_fortnight = create_deviation_chart(
+                        fortnightly_tmin[current_year], 
+                        fortnightly_tmin[last_year],
+                        "Min Temperature Deviation - Fortnightly",
+                        "Deviation (°C)"
+                    )
+                    st.plotly_chart(fig_tmin_dev_fortnight, use_container_width=True)
+                
+                with dev_col2:
+                    # Monthly Tmin Deviation
+                    fig_tmin_dev_monthly = create_deviation_chart(
+                        monthly_tmin[current_year], 
+                        monthly_tmin[last_year],
+                        "Min Temperature Deviation - Monthly",
+                        "Deviation (°C)"
+                    )
+                    st.plotly_chart(fig_tmin_dev_monthly, use_container_width=True)
+
+                # V. Maximum Relative Humidity Analysis
+                st.subheader("V. Maximum Relative Humidity Analysis")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly RH max
+                    fortnightly_rh_max = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "max_Rh", "mean"
+                    )
+                    fig_rh_max_fortnight = create_weather_comparison_chart(
+                        fortnightly_rh_max[current_year], 
+                        fortnightly_rh_max[last_year],
+                        "Max RH - Fortnightly Average",
+                        "Relative Humidity (%)"
+                    )
+                    st.plotly_chart(fig_rh_max_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Monthly RH max
+                    monthly_rh_max = calculate_monthly_metrics(
+                        filtered_weather, current_year, last_year, "max_Rh", "mean"
+                    )
+                    fig_rh_max_monthly = create_weather_comparison_chart(
+                        monthly_rh_max[current_year], 
+                        monthly_rh_max[last_year],
+                        "Max RH - Monthly Average",
+                        "Relative Humidity (%)"
+                    )
+                    st.plotly_chart(fig_rh_max_monthly, use_container_width=True)
+                
+                # RH Max Deviation
+                st.subheader("Max RH Deviation")
+                dev_col1, dev_col2 = st.columns(2)
+                
+                with dev_col1:
+                    # Fortnightly RH Max Deviation
+                    fig_rh_max_dev_fortnight = create_deviation_chart(
+                        fortnightly_rh_max[current_year], 
+                        fortnightly_rh_max[last_year],
+                        "Max RH Deviation - Fortnightly",
+                        "Deviation (%)"
+                    )
+                    st.plotly_chart(fig_rh_max_dev_fortnight, use_container_width=True)
+                
+                with dev_col2:
+                    # Monthly RH Max Deviation
+                    fig_rh_max_dev_monthly = create_deviation_chart(
+                        monthly_rh_max[current_year], 
+                        monthly_rh_max[last_year],
+                        "Max RH Deviation - Monthly",
+                        "Deviation (%)"
+                    )
+                    st.plotly_chart(fig_rh_max_dev_monthly, use_container_width=True)
+
+                # VI. Minimum Relative Humidity Analysis
+                st.subheader("VI. Minimum Relative Humidity Analysis")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly RH min
+                    fortnightly_rh_min = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "min_Rh", "mean"
+                    )
+                    fig_rh_min_fortnight = create_weather_comparison_chart(
+                        fortnightly_rh_min[current_year], 
+                        fortnightly_rh_min[last_year],
+                        "Min RH - Fortnightly Average",
+                        "Relative Humidity (%)"
+                    )
+                    st.plotly_chart(fig_rh_min_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Monthly RH min
+                    monthly_rh_min = calculate_monthly_metrics(
+                        filtered_weather, current_year, last_year, "min_Rh", "mean"
+                    )
+                    fig_rh_min_monthly = create_weather_comparison_chart(
+                        monthly_rh_min[current_year], 
+                        monthly_rh_min[last_year],
+                        "Min RH - Monthly Average",
+                        "Relative Humidity (%)"
+                    )
+                    st.plotly_chart(fig_rh_min_monthly, use_container_width=True)
+                
+                # RH Min Deviation
+                st.subheader("Min RH Deviation")
+                dev_col1, dev_col2 = st.columns(2)
+                
+                with dev_col1:
+                    # Fortnightly RH Min Deviation
+                    fig_rh_min_dev_fortnight = create_deviation_chart(
+                        fortnightly_rh_min[current_year], 
+                        fortnightly_rh_min[last_year],
+                        "Min RH Deviation - Fortnightly",
+                        "Deviation (%)"
+                    )
+                    st.plotly_chart(fig_rh_min_dev_fortnight, use_container_width=True)
+                
+                with dev_col2:
+                    # Monthly RH Min Deviation
+                    fig_rh_min_dev_monthly = create_deviation_chart(
+                        monthly_rh_min[current_year], 
+                        monthly_rh_min[last_year],
+                        "Min RH Deviation - Monthly",
+                        "Deviation (%)"
+                    )
+                    st.plotly_chart(fig_rh_min_dev_monthly, use_container_width=True)
+                
+            else:
+                st.info("No weather data available for the selected location and date range.")
+
+        # TAB 2: REMOTE SENSING INDICES
+        with tab2:
+            st.header(f"📡 Remote Sensing Indices - {level}: {level_name}")
+            
+            # I. NDVI Line Chart
+            st.subheader("I. NDVI Analysis")
+            ndvi_fig = create_ndvi_line_chart(
+                ndvi_ndwi_df, sowing_date, current_date, district, taluka, circle
+            )
+            if ndvi_fig:
+                st.plotly_chart(ndvi_fig, use_container_width=True)
+            else:
+                st.info("No NDVI data available for the selected parameters.")
+            
+            # II. NDWI Line Chart
+            st.subheader("II. NDWI Analysis")
+            ndwi_fig = create_ndwi_line_chart(
+                ndvi_ndwi_df, sowing_date, current_date, district, taluka, circle
+            )
+            if ndwi_fig:
+                st.plotly_chart(ndwi_fig, use_container_width=True)
+            else:
+                st.info("No NDWI data available for the selected parameters.")
+            
+            # III. MAI Analysis
+            st.subheader("III. MAI Analysis")
+            mai_fig = create_mai_comparison_chart(
+                mai_df, sowing_date, current_date, district, taluka, circle
+            )
+            if mai_fig:
+                st.plotly_chart(mai_fig, use_container_width=True)
+            else:
+                st.info("No MAI data available for the selected parameters.")
+
+        # TAB 3: DOWNLOADABLE DATA
+        with tab3:
+            st.header(f"💾 Downloadable Data - {level}: {level_name}")
+            
+            # Prepare data for download
+            st.subheader("Data Export")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                # Weather Data
+                if not filtered_weather.empty:
+                    weather_csv = filtered_weather.to_csv(index=False)
+                    st.download_button(
+                        label="Download Weather Data (CSV)",
+                        data=weather_csv,
+                        file_name=f"weather_data_{level}_{level_name}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.write("No weather data available")
+            
+            with col2:
+                # NDVI & NDWI Data
+                filtered_ndvi_ndwi = ndvi_ndwi_df.copy()
+                if district:
+                    filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["District"] == district]
+                if taluka:
+                    filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["Taluka"] == taluka]
+                if circle:
+                    filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["Circle"] == circle]
+                
+                if not filtered_ndvi_ndwi.empty:
+                    ndvi_ndwi_csv = filtered_ndvi_ndwi.to_csv(index=False)
+                    st.download_button(
+                        label="Download NDVI/NDWI Data (CSV)",
+                        data=ndvi_ndwi_csv,
+                        file_name=f"ndvi_ndwi_data_{level}_{level_name}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.write("No NDVI/NDWI data available")
+            
+            with col3:
+                # MAI Data
+                filtered_mai = mai_df.copy()
+                if district:
+                    filtered_mai = filtered_mai[filtered_mai["District"] == district]
+                if taluka:
+                    filtered_mai = filtered_mai[filtered_mai["Taluka"] == taluka]
+                if circle:
+                    filtered_mai = filtered_mai[filtered_mai["Circle"] == circle]
+                
+                if not filtered_mai.empty:
+                    mai_csv = filtered_mai.to_csv(index=False)
+                    st.download_button(
+                        label="Download MAI Data (CSV)",
+                        data=mai_csv,
+                        file_name=f"mai_data_{level}_{level_name}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.write("No MAI data available")
+            
+            # Data Previews
+            st.subheader("Data Previews")
+            
+            preview_tabs = st.tabs(["Weather Data", "NDVI/NDWI Data", "MAI Data"])
+            
+            with preview_tabs[0]:
+                if not filtered_weather.empty:
+                    st.dataframe(filtered_weather.head(10), use_container_width=True)
+                else:
+                    st.info("No weather data available for preview")
+            
+            with preview_tabs[1]:
+                if not filtered_ndvi_ndwi.empty:
+                    st.dataframe(filtered_ndvi_ndwi.head(10), use_container_width=True)
+                else:
+                    st.info("No NDVI/NDWI data available for preview")
+            
+            with preview_tabs[2]:
+                if not filtered_mai.empty:
+                    st.dataframe(filtered_mai.head(10), use_container_width=True)
+                else:
+                    st.info("No MAI data available for preview")
+
+# -----------------------------
+# FOOTER
+# -----------------------------
+st.markdown(
+    """
+    <div style='text-align: center; font-size: 16px; margin-top: 20px;'>
+        💻 <b>Developed by:</b> Ashish Selokar <br>
+        📧 For suggestions or queries, please email at:
+        <a href="mailto:ashish111.selokar@gmail.com">ashish111.selokar@gmail.com</a> <br><br>
+        <span style="font-size:15px; color:green;">
+            🌾 Empowering Farmers with Data-Driven Insights 🌾
+        </span><br>
+        <span style="font-size:13px; color:gray;">
+            Version 2.0 | Powered by Agricose | Last Updated: Oct 2024
+        </span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
