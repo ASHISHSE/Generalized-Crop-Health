@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from PIL import Image
 import drive
-drive.mount('/content/drive')
+
 
 # --- Page Config --- 
 st.set_page_config(
@@ -923,5 +923,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
