@@ -123,7 +123,7 @@ st.markdown("""
 @st.cache_data
 def load_data():
     # Updated file paths as per requirements
-    ndvi_ndwi_url = "I:\\ASHISH_Work\\Develope_Crop_Advisory\\App_Developement\\App_Inputs\\Final\\New Folder\\Version_2\\RS_Indices\\Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
+    ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/blob/main/Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
     weather_url = "I:\\ASHISH_Work\\Develope_Crop_Advisory\\App_Developement\\App_Inputs\\Final\\New Folder\\Version_2\\Weather data up to 03Jan24\\weather_data_2023.xlsx"
     mai_url = "I:\\ASHISH_Work\\Develope_Crop_Advisory\\App_Developement\\App_Inputs\\Final\\New Folder\\Version_2\\RS_Indices\\Circlewise_Data_MAI_2023_24_upload.xlsx"
     
@@ -836,4 +836,5 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True
+
 )
