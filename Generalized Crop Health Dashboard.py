@@ -216,9 +216,9 @@ def get_fortnight_dates(year, month, fortnight):
     
     if fortnight == '1FN':
         start_date = datetime(year, month_num, 1)
-        end_date = datetime(year, month_num, 15)
+        end_date = datetime(year, month_num, 20)
     else:
-        start_date = datetime(year, month_num, 16)
+        start_date = datetime(year, month_num, 21)
         # Get last day of month
         if month_num == 12:
             end_date = datetime(year, month_num, 31)
@@ -232,14 +232,14 @@ def get_fortnight_dates(year, month, fortnight):
 # -----------------------------
 def calculate_rainfall_metrics(weather_data, circle_code, start_date, end_date, comparison_year):
     """Calculate rainfall metrics for current and comparison year"""
-    current_data = weather_data[weather_data['CIRNCODE'] == circle_code].copy()
+    current_data = weather_data[weather_data['Circle'] == circle_code].copy()
     current_data = current_data[(current_data['Date(DD-MM-YYYY)'] >= start_date) & 
                                (current_data['Date(DD-MM-YYYY)'] <= end_date)]
     
     # Get comparison data (same dates but previous year)
     comp_start = start_date - timedelta(days=365)
     comp_end = end_date - timedelta(days=365)
-    comp_data = weather_data[weather_data['CIRNCODE'] == circle_code].copy()
+    comp_data = weather_data[weather_data['Circle'] == circle_code].copy()
     comp_data = comp_data[(comp_data['Date(DD-MM-YYYY)'] >= comp_start) & 
                          (comp_data['Date(DD-MM-YYYY)'] <= comp_end)]
     
@@ -251,13 +251,13 @@ def calculate_rainfall_metrics(weather_data, circle_code, start_date, end_date, 
 
 def calculate_rainy_days(weather_data, circle_code, start_date, end_date, comparison_year):
     """Calculate rainy days for current and comparison year"""
-    current_data = weather_data[weather_data['CIRNCODE'] == circle_code].copy()
+    current_data = weather_data[weather_data['Circle'] == circle_code].copy()
     current_data = current_data[(current_data['Date(DD-MM-YYYY)'] >= start_date) & 
                                (current_data['Date(DD-MM-YYYY)'] <= end_date)]
     
     comp_start = start_date - timedelta(days=365)
     comp_end = end_date - timedelta(days=365)
-    comp_data = weather_data[weather_data['CIRNCODE'] == circle_code].copy()
+    comp_data = weather_data[weather_data['Circle'] == circle_code].copy()
     comp_data = comp_data[(comp_data['Date(DD-MM-YYYY)'] >= comp_start) & 
                          (comp_data['Date(DD-MM-YYYY)'] <= comp_end)]
     
@@ -268,13 +268,13 @@ def calculate_rainy_days(weather_data, circle_code, start_date, end_date, compar
 
 def calculate_temperature_metrics(weather_data, circle_code, start_date, end_date, comparison_year, temp_type='Tmax'):
     """Calculate temperature metrics (average excluding 0 values)"""
-    current_data = weather_data[weather_data['CIRNCODE'] == circle_code].copy()
+    current_data = weather_data[weather_data['Circle'] == circle_code].copy()
     current_data = current_data[(current_data['Date(DD-MM-YYYY)'] >= start_date) & 
                                (current_data['Date(DD-MM-YYYY)'] <= end_date)]
     
     comp_start = start_date - timedelta(days=365)
     comp_end = end_date - timedelta(days=365)
-    comp_data = weather_data[weather_data['CIRNCODE'] == circle_code].copy()
+    comp_data = weather_data[weather_data['Circle'] == circle_code].copy()
     comp_data = comp_data[(comp_data['Date(DD-MM-YYYY)'] >= comp_start) & 
                          (comp_data['Date(DD-MM-YYYY)'] <= comp_end)]
     
@@ -287,13 +287,13 @@ def calculate_temperature_metrics(weather_data, circle_code, start_date, end_dat
 
 def calculate_rh_metrics(weather_data, circle_code, start_date, end_date, comparison_year, rh_type='max_Rh'):
     """Calculate relative humidity metrics (average excluding 0 values)"""
-    current_data = weather_data[weather_data['CIRNCODE'] == circle_code].copy()
+    current_data = weather_data[weather_data['Circle'] == circle_code].copy()
     current_data = current_data[(current_data['Date(DD-MM-YYYY)'] >= start_date) & 
                                (current_data['Date(DD-MM-YYYY)'] <= end_date)]
     
     comp_start = start_date - timedelta(days=365)
     comp_end = end_date - timedelta(days=365)
-    comp_data = weather_data[weather_data['CIRNCODE'] == circle_code].copy()
+    comp_data = weather_data[weather_data['Circle'] == circle_code].copy()
     comp_data = comp_data[(comp_data['Date(DD-MM-YYYY)'] >= comp_start) & 
                          (comp_data['Date(DD-MM-YYYY)'] <= comp_end)]
     
@@ -417,7 +417,7 @@ def create_ndvi_line_chart(ndvi_data, circle_code, start_date, end_date):
     if ndvi_data is None or ndvi_data.empty:
         return None
     
-    circle_data = ndvi_data[ndvi_data['CIRNCODE'] == circle_code].copy()
+    circle_data = ndvi_data[ndvi_data['Circle'] == circle_code].copy()
     circle_data = circle_data[(circle_data['Date'] >= start_date) & (circle_data['Date'] <= end_date)]
     
     if circle_data.empty:
@@ -460,7 +460,7 @@ def create_ndwi_line_chart(ndvi_data, circle_code, start_date, end_date):
     if ndvi_data is None or ndvi_data.empty:
         return None
     
-    circle_data = ndvi_data[ndvi_data['CIRNCODE'] == circle_code].copy()
+    circle_data = ndvi_data[ndvi_data['Circle'] == circle_code].copy()
     circle_data = circle_data[(circle_data['Date'] >= start_date) & (circle_data['Date'] <= end_date)]
     
     if circle_data.empty:
@@ -503,7 +503,7 @@ def create_mai_chart(mai_data, circle_code, selected_months):
     if mai_data is None or mai_data.empty:
         return None
     
-    circle_data = mai_data[mai_data['CIRNCODE'] == circle_code].copy()
+    circle_data = mai_data[mai_data['Circle'] == circle_code].copy()
     circle_data = circle_data[circle_data['Month'].isin(selected_months)]
     
     if circle_data.empty:
@@ -570,23 +570,23 @@ with col1:
     
     # Dynamic options based on selected level
     if level == "Circle" and ndvi_ndwi_processed is not None:
-        circle_options = [""] + sorted(ndvi_ndwi_processed['CIRNAME'].dropna().unique().tolist())
+        circle_options = [""] + sorted(ndvi_ndwi_processed['Circle'].dropna().unique().tolist())
         selected_circle = st.selectbox("Select Circle", circle_options)
-        circle_code = ndvi_ndwi_processed[ndvi_ndwi_processed['CIRNAME'] == selected_circle]['CIRNCODE'].iloc[0] if selected_circle else ""
+        circle_code = ndvi_ndwi_processed[ndvi_ndwi_processed['Circle'] == selected_circle]['Circle'].iloc[0] if selected_circle else ""
     elif level == "Taluka" and ndvi_ndwi_processed is not None:
-        taluka_options = [""] + sorted(ndvi_ndwi_processed['THENAME'].dropna().unique().tolist())
+        taluka_options = [""] + sorted(ndvi_ndwi_processed['Taluka'].dropna().unique().tolist())
         selected_taluka = st.selectbox("Select Taluka", taluka_options)
         # For demonstration, using first circle code in taluka
         if selected_taluka:
-            circle_code = ndvi_ndwi_processed[ndvi_ndwi_processed['THENAME'] == selected_taluka]['CIRNCODE'].iloc[0]
+            circle_code = ndvi_ndwi_processed[ndvi_ndwi_processed['Taluka'] == selected_taluka]['Circle'].iloc[0]
         else:
             circle_code = ""
     elif level == "District" and ndvi_ndwi_processed is not None:
-        district_options = [""] + sorted(ndvi_ndwi_processed['DTENAME'].dropna().unique().tolist())
+        district_options = [""] + sorted(ndvi_ndwi_processed['District'].dropna().unique().tolist())
         selected_district = st.selectbox("Select District", district_options)
         # For demonstration, using first circle code in district
         if selected_district:
-            circle_code = ndvi_ndwi_processed[ndvi_ndwi_processed['DTENAME'] == selected_district]['CIRNCODE'].iloc[0]
+            circle_code = ndvi_ndwi_processed[ndvi_ndwi_processed['District'] == selected_district]['Circle'].iloc[0]
         else:
             circle_code = ""
     else:
@@ -838,6 +838,7 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
 
 
 
