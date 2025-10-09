@@ -500,7 +500,9 @@ st.markdown("### 📅 Date Selection")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    district = st.selectbox("District *", [""] + district)
+    # CORRECTED: Use 'districts' (the list) instead of 'district' (the variable being created)
+    district = st.selectbox("District *", [""] + districts)
+    
     # Update taluka options based on selected district
     if district:
         taluka_options = [""] + sorted(weather_df[weather_df["District"] == district]["Taluka"].dropna().unique().tolist())
@@ -894,6 +896,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
