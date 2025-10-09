@@ -9,7 +9,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from PIL import Image
-
+from google.colab import drive
+drive.mount('/content/drive')
 
 # --- Page Config --- 
 st.set_page_config(
@@ -128,9 +129,9 @@ st.markdown("""
 def load_data():
     # Updated URLs as per requirements
     ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
-    weather_url = "https://docs.google.com/spreadsheets/d/1IsximMN9KrKpsREnWiNu0pbAtQ3idtjl/export?format=xlsx"
+    weather_url = pd.read_excel("/content/drive/MyDrive/advisory_Input/weather_data_2023_24_upload.xlsx")
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
-
+   
     try:
         # Load NDVI & NDWI data
         ndvi_ndwi_res = requests.get(ndvi_ndwi_url, timeout=30)
@@ -922,3 +923,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
