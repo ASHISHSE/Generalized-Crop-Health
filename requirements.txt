@@ -9,5 +9,7 @@ pyxlsb
 xlrd
 lfs
 drive
+pyxlsb==1.0.9
+
 
 
