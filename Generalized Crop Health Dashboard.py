@@ -16,80 +16,148 @@ st.set_page_config(
     layout="wide"
 )
 
-# [Keep all your existing CSS styling here...]
+# --- Modern Tech Dashboard Styling ---
+st.markdown("""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        html, body, [class*="css"] {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f6;
+            color: #262730;
+        }
+
+        /* Centered Responsive Header */
+        .main-header {
+            display: flex;          
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            margin-top: 40px;
+            margin-bottom: 25px;
+            width: 100%;
+        }
+
+        .logo-icon {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 50%;
+            box-shadow: 0 0 18px rgba(116,198,157,0.45);
+            border: 2px solid rgba(116,198,157,0.3);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .logo-icon:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 25px rgba(116,198,157,0.6);
+        }
+
+        .main-title {
+            font-size: clamp(1.8rem, 3vw, 2.8rem);
+            font-weight: 700;
+            color: #2d6a4f;
+            letter-spacing: 0.6px;            
+            text-shadow: 0 0 10px rgba(116,198,157,0.25);
+            margin-top: 15px;
+        }
+
+        .subtitle {
+            font-size: clamp(1rem, 1.5vw, 1.2rem);
+            color: #52b788;
+            font-weight: 500;
+            margin-top: 8px;
+            letter-spacing: 0.4px;
+        }
+
+        /* Responsive Button Styling */
+        div.stButton > button:first-child {
+            background: linear-gradient(90deg, #2d6a4f, #52b788);
+            color: white;
+            border-radius: 8px;
+            font-weight: 600;
+            padding: 0.6rem 1.4rem;
+            border: none;
+            box-shadow: 0 0 10px rgba(45,106,79,0.3);
+            transition: all 0.25s ease;
+        }
+
+        div.stButton > button:hover {
+            background: linear-gradient(90deg, #52b788, #2d6a4f);
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(82,183,136,0.4);
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #adb5bd;
+            margin-top: 40px;
+        }
+
+        /* Make sure header scales well on smaller devices */
+        @media (max-width: 768px) {
+            .main-header {
+                margin-top: 25px;
+                margin-bottom: 20px;
+            }
+            .logo-icon {
+                width: 90px;
+                height: 90px;
+            }
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- HEADER (Farmer icon above title & centered) ---
+st.markdown("""
+    <div class="main-header">
+        <img src="https://raw.githubusercontent.com/ASHISHSE/App_test/main/icon.png" class="logo-icon" alt="Farmer Icon">
+        <div class="main-title">Smart Crop Advisory Dashboard</div>
+        <div class="subtitle">Empowering Farmers with Data-Driven Insights</div>
+    </div>
+""", unsafe_allow_html=True)
 
 # -----------------------------
-# LOAD DATA - UPDATED with better error handling
+# LOAD DATA - UPDATED URLs as per requirements
 # -----------------------------
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+@st.cache_data
 def load_data():
-    # Updated URLs
+    # Updated URLs as per request
     ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
-    weather_url = "https://docs.google.com/spreadsheets/d/1IsximMN9KrKpsREnWiNu0pbAtQ3idtjl/export?format=xlsx"
+    weather_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/weather_data_2023_24_upload.xlsb"
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
-    
-    # Alternative weather URL (if main one fails)
-    weather_backup_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/weather_data_backup.xlsx"
 
     try:
         # Load NDVI & NDWI data
-        st.info("📥 Loading NDVI & NDWI data...")
-        ndvi_ndwi_res = requests.get(ndvi_ndwi_url, timeout=45)
-        ndvi_ndwi_res.raise_for_status()
+        ndvi_ndwi_res = requests.get(ndvi_ndwi_url, timeout=30)
         ndvi_ndwi_df = pd.read_excel(BytesIO(ndvi_ndwi_res.content))
-        st.success("✅ NDVI & NDWI data loaded successfully")
         
-        # Load Weather data with retry logic
-        st.info("📥 Loading Weather data...")
-        weather_df = None
+        # Load Weather data (both 2023 and 2024 sheets)
+        weather_res = requests.get(weather_url, timeout=30)
+        weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
+        weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
         
-        try:
-            weather_res = requests.get(weather_url, timeout=45)
-            weather_res.raise_for_status()
-            weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
-            weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
-            weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
-            st.success("✅ Weather data loaded successfully from Google Sheets")
-        except Exception as e:
-            st.warning(f"⚠️ Primary weather source failed: {e}. Trying backup...")
-            try:
-                # Try backup URL or create sample data
-                weather_backup_res = requests.get(weather_backup_url, timeout=45)
-                if weather_backup_res.status_code == 200:
-                    weather_df = pd.read_excel(BytesIO(weather_backup_res.content))
-                    st.success("✅ Weather data loaded from backup")
-                else:
-                    # Create sample weather data structure
-                    st.warning("🌤️ Using sample weather data for demonstration")
-                    weather_df = create_sample_weather_data()
-            except:
-                # Final fallback - create sample data
-                st.warning("🌤️ Using sample weather data for demonstration")
-                weather_df = create_sample_weather_data()
+        # Combine weather data
+        weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
         
         # Load MAI data
-        st.info("📥 Loading MAI data...")
-        mai_res = requests.get(mai_url, timeout=45)
-        mai_res.raise_for_status()
+        mai_res = requests.get(mai_url, timeout=30)
         mai_df = pd.read_excel(BytesIO(mai_res.content))
-        st.success("✅ MAI data loaded successfully")
         
         # Process NDVI & NDWI data
         ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
         ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
         
         # Process Weather data
-        if weather_df is not None:
-            weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
-            weather_df = weather_df.dropna(subset=["Date_dt"]).copy()
-            
-            # Convert numeric columns for weather
-            for col in ["Rainfall", "Tmax", "Tmin", "max_Rh", "min_Rh"]:
-                if col in weather_df.columns:
-                    weather_df[col] = pd.to_numeric(weather_df[col], errors="coerce")
-        else:
-            st.error("❌ Could not load weather data")
-            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], [], []
+        weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
+        weather_df = weather_df.dropna(subset=["Date_dt"]).copy()
+        
+        # Convert numeric columns for weather
+        for col in ["Rainfall", "Tmax", "Tmin", "max_Rh", "min_Rh"]:
+            if col in weather_df.columns:
+                weather_df[col] = pd.to_numeric(weather_df[col], errors="coerce")
         
         # Process MAI data
         mai_df["Year"] = pd.to_numeric(mai_df["Year"], errors="coerce")
@@ -100,60 +168,14 @@ def load_data():
         talukas = sorted(weather_df["Taluka"].dropna().unique().tolist())
         circles = sorted(weather_df["Circle"].dropna().unique().tolist())
         
-        st.success(f"🎉 Data loading complete! Found {len(districts)} districts, {len(talukas)} talukas, {len(circles)} circles")
-        
         return weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles
         
     except Exception as e:
-        st.error(f"❌ Error loading data: {e}")
-        st.info("🔄 Please check your internet connection and try again.")
+        st.error(f"Error loading data: {e}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], [], []
 
-def create_sample_weather_data():
-    """Create sample weather data for demonstration when real data is unavailable"""
-    dates = pd.date_range(start='2023-01-01', end='2024-12-31', freq='D')
-    
-    sample_data = {
-        'District': ['Sample District'] * len(dates),
-        'Taluka': ['Sample Taluka'] * len(dates),
-        'Circle': ['Sample Circle'] * len(dates),
-        'Date(DD-MM-YYYY)': [d.strftime('%d-%m-%Y') for d in dates],
-        'Rainfall': np.random.exponential(2, len(dates)),
-        'Tmax': np.random.normal(32, 5, len(dates)),
-        'Tmin': np.random.normal(20, 4, len(dates)),
-        'max_Rh': np.random.uniform(60, 95, len(dates)),
-        'min_Rh': np.random.uniform(30, 70, len(dates))
-    }
-    
-    return pd.DataFrame(sample_data)
-
-# [Rest of your existing code remains the same...]
-
-# Load data with progress indication
-with st.spinner('Loading agricultural data... This may take a few moments.'):
-    weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data()
-
-# Check if data loaded successfully
-if weather_df.empty or ndvi_ndwi_df.empty or mai_df.empty:
-    st.error("""
-    ❌ Unable to load required data. Please:
-    
-    1. Check your internet connection
-    2. Verify the data URLs are accessible
-    3. Try refreshing the page
-    4. Contact support if the issue persists
-    
-    The app will continue with limited functionality.
-    """)
-    
-    # Provide option to continue with sample data
-    if st.button("🔄 Continue with Sample Data"):
-        st.info("Using sample data for demonstration purposes")
-        # You can add sample data initialization here
-else:
-    st.success("✅ All data loaded successfully!")
-
-# [Rest of your existing UI code remains exactly the same...]
+# Load data
+weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data()
 
 # -----------------------------
 # FORTNIGHT DEFINITION
@@ -1039,4 +1061,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
