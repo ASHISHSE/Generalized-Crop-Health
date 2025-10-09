@@ -127,7 +127,7 @@ st.markdown("""
 def load_data():
     # Updated URLs as per request
     ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
-    weather_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/weather_data_2023_24_upload.xlsb"
+    weather_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/blob/main/weather_data_2023_24_upload.xlsb"
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
 
     try:
@@ -524,3 +524,4 @@ if generate:
                 # [Continue with all other weather metrics as before...]
 
 # [Rest of the code remains the same...]
+
