@@ -150,12 +150,12 @@ def load_data():
         # Process NDVI & NDWI data
         st.info("Processing NDVI & NDWI data...")
         ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
-        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date(DD-MM-YYYY)"]).copy()
+        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
         
         # Process Weather data
         st.info("Processing weather data...")
         weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
-        weather_df = weather_df.dropna(subset=["Date(DD-MM-YYYY)"]).copy()
+        weather_df = weather_df.dropna(subset=["Date_dt"]).copy()
         
         # Convert numeric columns for weather data
         for col in ["Rainfall", "Tmax", "Tmin", "max_Rh", "min_Rh"]:
@@ -302,7 +302,7 @@ def create_sample_data():
                     })
     
     ndvi_ndwi_df = pd.DataFrame(ndvi_ndwi_data)
-    ndvi_ndwi_df["Date(DD-MM-YYYY)"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y")
+    ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y")
     
     # Create sample MAI data
     months = ['January', 'February', 'March', 'April', 'May', 'June', 
@@ -869,5 +869,224 @@ if generate:
             rainfall_fortnightly = calculate_rainfall_metrics(filtered_weather, fortnightly_periods, 2024)
             rainfall_monthly = calculate_rainfall_metrics(filtered_weather, monthly_periods, 2024)
             
-            tmax_fortnightly = calculate_temperature_metrics(filtered_weather, fortnightly_periods, 202
+            tmax_fortnightly = calculate_temperature_metrics(filtered_weather, fortnightly_periods, 2024, "max")
+            tmax_monthly = calculate_temperature_metrics(filtered_weather, monthly_periods, 2024, "max")
+            
+            tmin_fortnightly = calculate_temperature_metrics(filtered_weather, fortnightly_periods, 2024, "min")
+            tmin_monthly = calculate_temperature_metrics(filtered_weather, monthly_periods, 2024, "min")
+            
+            max_rh_fortnightly = calculate_humidity_metrics(filtered_weather, fortnightly_periods, 2024, "max")
+            max_rh_monthly = calculate_humidity_metrics(filtered_weather, monthly_periods, 2024, "max")
+            
+            min_rh_fortnightly = calculate_humidity_metrics(filtered_weather, fortnightly_periods, 2024, "min")
+            min_rh_monthly = calculate_humidity_metrics(filtered_weather, monthly_periods, 2024, "min")
+            
+            # Display charts in expandable sections
+            with st.expander("🌧️ Rainfall Analysis", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    if not rainfall_fortnightly.empty:
+                        st.plotly_chart(create_rainfall_chart(rainfall_fortnightly, "Fortnightly"), use_container_width=True)
+                    else:
+                        st.info("No fortnightly rainfall data available")
+                
+                with col2:
+                    if not rainfall_monthly.empty:
+                        st.plotly_chart(create_rainfall_chart(rainfall_monthly, "Monthly"), use_container_width=True)
+                    else:
+                        st.info("No monthly rainfall data available")
+            
+            with st.expander("☔ Rainy Days Analysis", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    if not rainfall_fortnightly.empty:
+                        st.plotly_chart(create_rainy_days_chart(rainfall_fortnightly, "Fortnightly"), use_container_width=True)
+                    else:
+                        st.info("No fortnightly rainy days data available")
+                
+                with col2:
+                    if not rainfall_monthly.empty:
+                        st.plotly_chart(create_rainy_days_chart(rainfall_monthly, "Monthly"), use_container_width=True)
+                    else:
+                        st.info("No monthly rainy days data available")
+            
+            with st.expander("🌡️ Maximum Temperature Analysis", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    if not tmax_fortnightly.empty:
+                        st.plotly_chart(create_temperature_chart(tmax_fortnightly, "Fortnightly", "max"), use_container_width=True)
+                    else:
+                        st.info("No fortnightly maximum temperature data available")
+                
+                with col2:
+                    if not tmax_monthly.empty:
+                        st.plotly_chart(create_temperature_chart(tmax_monthly, "Monthly", "max"), use_container_width=True)
+                    else:
+                        st.info("No monthly maximum temperature data available")
+            
+            with st.expander("🌡️ Minimum Temperature Analysis", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    if not tmin_fortnightly.empty:
+                        st.plotly_chart(create_temperature_chart(tmin_fortnightly, "Fortnightly", "min"), use_container_width=True)
+                    else:
+                        st.info("No fortnightly minimum temperature data available")
+                
+                with col2:
+                    if not tmin_monthly.empty:
+                        st.plotly_chart(create_temperature_chart(tmin_monthly, "Monthly", "min"), use_container_width=True)
+                    else:
+                        st.info("No monthly minimum temperature data available")
+            
+            with st.expander("💧 Maximum Relative Humidity Analysis", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    if not max_rh_fortnightly.empty:
+                        st.plotly_chart(create_humidity_chart(max_rh_fortnightly, "Fortnightly", "max"), use_container_width=True)
+                    else:
+                        st.info("No fortnightly maximum humidity data available")
+                
+                with col2:
+                    if not max_rh_monthly.empty:
+                        st.plotly_chart(create_humidity_chart(max_rh_monthly, "Monthly", "max"), use_container_width=True)
+                    else:
+                        st.info("No monthly maximum humidity data available")
+            
+            with st.expander("💧 Minimum Relative Humidity Analysis", expanded=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    if not min_rh_fortnightly.empty:
+                        st.plotly_chart(create_humidity_chart(min_rh_fortnightly, "Fortnightly", "min"), use_container_width=True)
+                    else:
+                        st.info("No fortnightly minimum humidity data available")
+                
+                with col2:
+                    if not min_rh_monthly.empty:
+                        st.plotly_chart(create_humidity_chart(min_rh_monthly, "Monthly", "min"), use_container_width=True)
+                    else:
+                        st.info("No monthly minimum humidity data available")
+        
+        # TAB 2: REMOTE SENSING INDICES
+        with tab2:
+            st.header(f"🛰️ Remote Sensing Indices - {level}: {level_name}")
+            
+            # Get NDVI/NDWI comparison data
+            ndvi_ndwi_comparison = get_ndvi_ndwi_comparison(
+                filtered_ndvi_ndwi, sowing_date, current_date, district, taluka, circle
+            )
+            
+            # Get MAI comparison data
+            mai_comparison = get_mai_comparison(
+                filtered_mai, sowing_date, current_date, district, taluka, circle
+            )
+            
+            # Display charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if not ndvi_ndwi_comparison.empty:
+                    st.plotly_chart(create_ndvi_ndwi_line_chart(ndvi_ndwi_comparison, "NDVI"), use_container_width=True)
+                else:
+                    st.info("No NDVI comparison data available")
+            
+            with col2:
+                if not ndvi_ndwi_comparison.empty:
+                    st.plotly_chart(create_ndvi_ndwi_line_chart(ndvi_ndwi_comparison, "NDWI"), use_container_width=True)
+                else:
+                    st.info("No NDWI comparison data available")
+            
+            # MAI Chart
+            st.subheader("🌧️ MAI Analysis")
+            if not mai_comparison.empty:
+                st.plotly_chart(create_mai_chart(mai_comparison), use_container_width=True)
+            else:
+                st.info("No MAI comparison data available")
+        
+        # TAB 3: DOWNLOADABLE DATA
+        with tab3:
+            st.header(f"💾 Downloadable Data - {level}: {level_name}")
+            
+            # Prepare data for download
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Weather Data
+                st.subheader("🌤️ Weather Data")
+                if not filtered_weather.empty:
+                    weather_csv = filtered_weather.to_csv(index=False)
+                    st.download_button(
+                        label="Download Weather Data (CSV)",
+                        data=weather_csv,
+                        file_name=f"weather_data_{level}_{level_name}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.write("No weather data available")
+                
+                # NDVI/NDWI Data
+                st.subheader("🛰️ NDVI & NDWI Data")
+                if not filtered_ndvi_ndwi.empty:
+                    ndvi_ndwi_csv = filtered_ndvi_ndwi.to_csv(index=False)
+                    st.download_button(
+                        label="Download NDVI/NDWI Data (CSV)",
+                        data=ndvi_ndwi_csv,
+                        file_name=f"ndvi_ndwi_data_{level}_{level_name}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.write("No NDVI/NDWI data available")
+            
+            with col2:
+                # MAI Data
+                st.subheader("🌧️ MAI Data")
+                if not filtered_mai.empty:
+                    mai_csv = filtered_mai.to_csv(index=False)
+                    st.download_button(
+                        label="Download MAI Data (CSV)",
+                        data=mai_csv,
+                        file_name=f"mai_data_{level}_{level_name}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.write("No MAI data available")
+                
+                # Comparison Data
+                st.subheader("📊 Comparison Data")
+                if not rainfall_monthly.empty:
+                    comparison_data = pd.concat([
+                        rainfall_monthly,
+                        tmax_monthly,
+                        tmin_monthly,
+                        max_rh_monthly,
+                        min_rh_monthly
+                    ], ignore_index=True)
+                    
+                    comparison_csv = comparison_data.to_csv(index=False)
+                    st.download_button(
+                        label="Download Comparison Data (CSV)",
+                        data=comparison_csv,
+                        file_name=f"comparison_data_{level}_{level_name}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.write("No comparison data available")
 
+# -----------------------------
+# FOOTER
+# -----------------------------
+st.markdown(
+    """
+    <div style='text-align: center; font-size: 16px; margin-top: 20px;'>
+        💻 <b>Developed by:</b> Ashish Selokar <br>
+        📧 For suggestions or queries, please email at:
+        <a href="mailto:ashish111.selokar@gmail.com">ashish111.selokar@gmail.com</a> <br><br>
+        <span style="font-size:15px; color:green;">
+            🌾 Crop Health Comparison Dashboard 🌾
+        </span><br>
+        <span style="font-size:13px; color:gray;">
+            Version 2.0 | Last Updated: Oct 2024
+        </span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
