@@ -129,7 +129,10 @@ st.markdown("""
 def load_data():
     # Updated URLs as per requirements
     ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
-    weather_url = pd.read_excel("/content/drive/MyDrive/advisory_Input/weather_data_2023_24_upload.xlsx")
+    weather_url = "https://docs.google.com/spreadsheets/d/1IsximMN9KrKpsREnWiNu0pbAtQ3idtjl/export?format=xlsx"
+
+# Read the Excel file directly from Google Drive
+    weather_data = pd.read_excel(weather_url)
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
    
     try:
@@ -923,6 +926,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
