@@ -121,13 +121,29 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -----------------------------
-# LOAD DATA - UPDATED URLs with solutions for large files
+# WEATHER DATA OPTIONS (MOVED OUTSIDE CACHED FUNCTION)
+# -----------------------------
+st.sidebar.info("🌤️ Weather Data Options")
+weather_option = st.sidebar.radio(
+    "Choose weather data source:",
+    ["Use Sample Data", "Upload Weather Data File"]
+)
+
+uploaded_weather_file = None
+if weather_option == "Upload Weather Data File":
+    uploaded_weather_file = st.sidebar.file_uploader(
+        "Upload Weather Data (.xlsx or .xlsb)", 
+        type=['xlsx', 'xlsb'],
+        help="File should contain sheets: 'Weather_data_23' and 'Weather_data_24'"
+    )
+
+# -----------------------------
+# LOAD DATA - UPDATED with widget removed
 # -----------------------------
 @st.cache_data
-def load_data():
+def load_data(_uploaded_file=None):
     # Updated URLs as per request
     ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
-    weather_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/blob/main/weather_data_2023_24_upload.xlsb"
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
 
     try:
@@ -147,63 +163,46 @@ def load_data():
         mai_df["Year"] = pd.to_numeric(mai_df["Year"], errors="coerce")
         mai_df["MAI (%)"] = pd.to_numeric(mai_df["MAI (%)"], errors="coerce")
         
-        # For weather data - provide multiple options
-        st.sidebar.info("🌤️ Weather Data Options")
-        weather_option = st.sidebar.radio(
-            "Choose weather data source:",
-            ["Use Sample Data", "Upload Weather Data File"]
-        )
-        
-        if weather_option == "Upload Weather Data File":
-            uploaded_file = st.sidebar.file_uploader(
-                "Upload Weather Data (.xlsx or .xlsb)", 
-                type=['xlsx', 'xlsb'],
-                help="File should contain sheets: 'Weather_data_23' and 'Weather_data_24'"
-            )
-            
-            if uploaded_file is not None:
-                try:
-                    if uploaded_file.name.endswith('.xlsb'):
-                        # Read .xlsb file
-                        with pyxlsb.open_workbook(uploaded_file) as wb:
-                            weather_23_df = pd.DataFrame()
-                            weather_24_df = pd.DataFrame()
-                            
-                            # Read Weather_data_23 sheet
-                            with wb.get_sheet('Weather_data_23') as sheet:
-                                data = []
-                                for row in sheet.rows():
-                                    data.append([item.v for item in row])
-                                if data:
-                                    weather_23_df = pd.DataFrame(data[1:], columns=data[0])
-                            
-                            # Read Weather_data_24 sheet
-                            with wb.get_sheet('Weather_data_24') as sheet:
-                                data = []
-                                for row in sheet.rows():
-                                    data.append([item.v for item in row])
-                                if data:
-                                    weather_24_df = pd.DataFrame(data[1:], columns=data[0])
-                    
-                    else:
-                        # Read .xlsx file
-                        weather_23_df = pd.read_excel(uploaded_file, sheet_name='Weather_data_23')
-                        weather_24_df = pd.read_excel(uploaded_file, sheet_name='Weather_data_24')
-                    
-                    # Combine weather data
-                    weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
-                    st.sidebar.success("✅ Weather data loaded successfully!")
-                    
-                except Exception as e:
-                    st.sidebar.error(f"Error reading weather file: {e}")
-                    st.sidebar.info("Using sample data instead.")
-                    weather_df = create_sample_weather_data()
-            else:
+        # Handle weather data based on uploaded file
+        if _uploaded_file is not None:
+            try:
+                if _uploaded_file.name.endswith('.xlsb'):
+                    # Read .xlsb file
+                    with pyxlsb.open_workbook(_uploaded_file) as wb:
+                        weather_23_df = pd.DataFrame()
+                        weather_24_df = pd.DataFrame()
+                        
+                        # Read Weather_data_23 sheet
+                        with wb.get_sheet('Weather_data_23') as sheet:
+                            data = []
+                            for row in sheet.rows():
+                                data.append([item.v for item in row])
+                            if data:
+                                weather_23_df = pd.DataFrame(data[1:], columns=data[0])
+                        
+                        # Read Weather_data_24 sheet
+                        with wb.get_sheet('Weather_data_24') as sheet:
+                            data = []
+                            for row in sheet.rows():
+                                data.append([item.v for item in row])
+                            if data:
+                                weather_24_df = pd.DataFrame(data[1:], columns=data[0])
+                
+                else:
+                    # Read .xlsx file
+                    weather_23_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_23')
+                    weather_24_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_24')
+                
+                # Combine weather data
+                weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
+                
+            except Exception as e:
+                st.sidebar.error(f"Error reading weather file: {e}")
+                st.sidebar.info("Using sample data instead.")
                 weather_df = create_sample_weather_data()
         else:
             # Use sample data
             weather_df = create_sample_weather_data()
-            st.sidebar.info("📊 Using sample weather data. Upload your file for complete analysis.")
         
         # Process Weather data
         weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
@@ -256,62 +255,14 @@ def create_sample_weather_data():
     
     return pd.DataFrame(sample_data)
 
-# Alternative solution: Load weather data in chunks
-@st.cache_data
-def load_weather_data_chunked(_uploaded_file):
-    """Load large weather data file in chunks"""
-    try:
-        if _uploaded_file.name.endswith('.xlsb'):
-            # For .xlsb files, we need to read the entire file at once
-            with pyxlsb.open_workbook(_uploaded_file) as wb:
-                weather_23_df = pd.DataFrame()
-                weather_24_df = pd.DataFrame()
-                
-                # Read sheets
-                for sheet_name in ['Weather_data_23', 'Weather_data_24']:
-                    with wb.get_sheet(sheet_name) as sheet:
-                        data = []
-                        for i, row in enumerate(sheet.rows()):
-                            if i == 0:
-                                headers = [item.v for item in row]
-                            else:
-                                data.append([item.v for item in row])
-                            
-                            # Limit for demo - remove this in production
-                            if i > 1000:  # Adjust based on your needs
-                                break
-                        
-                        if data:
-                            df = pd.DataFrame(data, columns=headers)
-                            if sheet_name == 'Weather_data_23':
-                                weather_23_df = df
-                            else:
-                                weather_24_df = df
-                
-                return pd.concat([weather_23_df, weather_24_df], ignore_index=True)
-        else:
-            # For .xlsx files, use chunk reading
-            chunks = []
-            for chunk in pd.read_excel(_uploaded_file, sheet_name='Weather_data_23', chunksize=10000):
-                chunks.append(chunk)
-            weather_23_df = pd.concat(chunks, ignore_index=True)
-            
-            chunks = []
-            for chunk in pd.read_excel(_uploaded_file, sheet_name='Weather_data_24', chunksize=10000):
-                chunks.append(chunk)
-            weather_24_df = pd.concat(chunks, ignore_index=True)
-            
-            return pd.concat([weather_23_df, weather_24_df], ignore_index=True)
-            
-    except Exception as e:
-        st.error(f"Error reading weather file: {e}")
-        return create_sample_weather_data()
+# Load data with the uploaded file
+weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data(uploaded_weather_file)
 
-# Load data
-weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data()
-
-# Rest of the code remains the same from the previous version...
-# [All the remaining functions and UI code from the previous implementation]
+# Show info message based on weather data source
+if weather_option == "Use Sample Data":
+    st.sidebar.info("📊 Using sample weather data. Upload your file for complete analysis.")
+elif uploaded_weather_file is not None:
+    st.sidebar.success("✅ Weather data loaded successfully!")
 
 # -----------------------------
 # FORTNIGHT DEFINITION
@@ -384,10 +335,194 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
     
     return metrics
 
-# [Continue with all the other functions from the previous code...]
-# The rest of the functions (create_weather_comparison_chart, create_deviation_chart, 
-# create_ndvi_line_chart, create_ndwi_line_chart, create_mai_comparison_chart) 
-# remain exactly the same as in the previous version
+# -----------------------------
+# CHART CREATION FUNCTIONS
+# -----------------------------
+def create_weather_comparison_chart(current_year_data, last_year_data, title, yaxis_title):
+    """Create comparison chart for weather metrics"""
+    # Get all possible periods
+    all_periods = sorted(set(current_year_data.index) | set(last_year_data.index))
+    
+    current_values = [current_year_data.get(period, 0) for period in all_periods]
+    last_values = [last_year_data.get(period, 0) for period in all_periods]
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        name=f'Current Year',
+        x=all_periods,
+        y=current_values,
+        marker_color='#2d6a4f'
+    ))
+    
+    fig.add_trace(go.Bar(
+        name=f'Previous Year',
+        x=all_periods,
+        y=last_values,
+        marker_color='#52b788'
+    ))
+    
+    fig.update_layout(
+        title=title,
+        xaxis_title="Period",
+        yaxis_title=yaxis_title,
+        barmode='group',
+        template='plotly_white',
+        height=400
+    )
+    
+    return fig
+
+def create_deviation_chart(current_year_data, last_year_data, title, yaxis_title):
+    """Create deviation chart"""
+    all_periods = sorted(set(current_year_data.index) | set(last_year_data.index))
+    
+    deviations = []
+    for period in all_periods:
+        current_val = current_year_data.get(period, 0)
+        last_val = last_year_data.get(period, 0)
+        
+        if last_val != 0:
+            if 'Deviation (%)' in title:
+                deviation = ((current_val - last_val) / last_val) * 100
+            else:
+                deviation = current_val - last_val
+        else:
+            deviation = 0
+        
+        deviations.append(deviation)
+    
+    colors = ['green' if x >= 0 else 'red' for x in deviations]
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=all_periods,
+        y=deviations,
+        marker_color=colors,
+        name='Deviation'
+    ))
+    
+    fig.update_layout(
+        title=title,
+        xaxis_title="Period",
+        yaxis_title=yaxis_title,
+        template='plotly_white',
+        height=400
+    )
+    
+    return fig
+
+def create_ndvi_line_chart(ndvi_df, sowing_date, current_date, district, taluka, circle):
+    """Create NDVI line chart"""
+    filtered_df = ndvi_df.copy()
+    
+    if district:
+        filtered_df = filtered_df[filtered_df["District"] == district]
+    if taluka:
+        filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
+    if circle:
+        filtered_df = filtered_df[filtered_df["Circle"] == circle]
+    
+    filtered_df = filtered_df[
+        (filtered_df["Date_dt"] >= pd.to_datetime(sowing_date)) & 
+        (filtered_df["Date_dt"] <= pd.to_datetime(current_date))
+    ]
+    
+    if filtered_df.empty:
+        return None
+    
+    fig = px.line(
+        filtered_df, 
+        x="Date_dt", 
+        y="NDVI", 
+        title="NDVI Trend Over Time",
+        markers=True
+    )
+    
+    fig.update_layout(
+        xaxis_title="Date",
+        yaxis_title="NDVI",
+        template='plotly_white',
+        height=400
+    )
+    
+    return fig
+
+def create_ndwi_line_chart(ndwi_df, sowing_date, current_date, district, taluka, circle):
+    """Create NDWI line chart"""
+    filtered_df = ndwi_df.copy()
+    
+    if district:
+        filtered_df = filtered_df[filtered_df["District"] == district]
+    if taluka:
+        filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
+    if circle:
+        filtered_df = filtered_df[filtered_df["Circle"] == circle]
+    
+    filtered_df = filtered_df[
+        (filtered_df["Date_dt"] >= pd.to_datetime(sowing_date)) & 
+        (filtered_df["Date_dt"] <= pd.to_datetime(current_date))
+    ]
+    
+    if filtered_df.empty:
+        return None
+    
+    fig = px.line(
+        filtered_df, 
+        x="Date_dt", 
+        y="NDWI", 
+        title="NDWI Trend Over Time",
+        markers=True,
+        color_discrete_sequence=['blue']
+    )
+    
+    fig.update_layout(
+        xaxis_title="Date",
+        yaxis_title="NDWI",
+        template='plotly_white',
+        height=400
+    )
+    
+    return fig
+
+def create_mai_comparison_chart(mai_df, sowing_date, current_date, district, taluka, circle):
+    """Create MAI comparison chart"""
+    filtered_df = mai_df.copy()
+    
+    if district:
+        filtered_df = filtered_df[filtered_df["District"] == district]
+    if taluka:
+        filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
+    if circle:
+        filtered_df = filtered_df[filtered_df["Circle"] == circle]
+    
+    # Filter by year range
+    current_year = current_date.year
+    last_year = current_year - 1
+    
+    filtered_df = filtered_df[filtered_df["Year"].isin([current_year, last_year])]
+    
+    if filtered_df.empty:
+        return None
+    
+    fig = px.bar(
+        filtered_df,
+        x="Year",
+        y="MAI (%)",
+        color="Year",
+        title="MAI Comparison Between Years",
+        color_discrete_map={current_year: '#2d6a4f', last_year: '#52b788'}
+    )
+    
+    fig.update_layout(
+        xaxis_title="Year",
+        yaxis_title="MAI (%)",
+        template='plotly_white',
+        height=400
+    )
+    
+    return fig
 
 # -----------------------------
 # MAIN UI
@@ -450,9 +585,6 @@ if generate:
     if not district or not sowing_date or not current_date:
         st.error("Please select all required fields (District, Start Date, End Date).")
     else:
-        # [The rest of the analysis code remains exactly the same as previous version]
-        # This includes all the tab implementations and chart generations
-        
         sowing_date_str = sowing_date.strftime("%d/%m/%Y")
         current_date_str = current_date.strftime("%d/%m/%Y")
         
@@ -939,4 +1071,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
