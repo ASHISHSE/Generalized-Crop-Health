@@ -130,7 +130,8 @@ def load_data():
     weather_url = "https://docs.google.com/spreadsheets/d/1IsximMN9KrKpsREnWiNu0pbAtQ3idtjl/export?format=xlsx"
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
 
-    @st.cache_data
+
+@st.cache_data
 def load_data():
     try:
         # Load NDVI & NDWI data
@@ -203,6 +204,7 @@ def load_data():
         st.error(f"Error loading data: {e}")
         # Return empty DataFrames and lists
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], [], []
+
 # -----------------------------
 # FORTNIGHT DEFINITION
 # -----------------------------
@@ -892,4 +894,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
