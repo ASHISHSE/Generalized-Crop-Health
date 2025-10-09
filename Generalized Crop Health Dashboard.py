@@ -501,7 +501,7 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     # CORRECTED: Use 'districts' (the list) instead of 'district' (the variable being created)
-    district = st.selectbox("District *", [""] + districts)
+    district = st.selectbox("District *", [""] + district)
     
     # Update taluka options based on selected district
     if district:
@@ -896,6 +896,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
