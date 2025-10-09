@@ -150,12 +150,12 @@ def load_data():
         # Process NDVI & NDWI data
         st.info("Processing NDVI & NDWI data...")
         ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
-        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
+        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date(DD-MM-YYYY)"]).copy()
         
         # Process Weather data
         st.info("Processing weather data...")
         weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
-        weather_df = weather_df.dropna(subset=["Date_dt"]).copy()
+        weather_df = weather_df.dropna(subset=["Date(DD-MM-YYYY)"]).copy()
         
         # Convert numeric columns for weather data
         for col in ["Rainfall", "Tmax", "Tmin", "max_Rh", "min_Rh"]:
@@ -302,7 +302,7 @@ def create_sample_data():
                     })
     
     ndvi_ndwi_df = pd.DataFrame(ndvi_ndwi_data)
-    ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y")
+    ndvi_ndwi_df["Date(DD-MM-YYYY)"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y")
     
     # Create sample MAI data
     months = ['January', 'February', 'March', 'April', 'May', 'June', 
@@ -870,3 +870,4 @@ if generate:
             rainfall_monthly = calculate_rainfall_metrics(filtered_weather, monthly_periods, 2024)
             
             tmax_fortnightly = calculate_temperature_metrics(filtered_weather, fortnightly_periods, 202
+
