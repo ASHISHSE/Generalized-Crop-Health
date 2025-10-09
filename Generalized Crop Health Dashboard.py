@@ -130,20 +130,49 @@ def load_data():
     weather_url = "https://docs.google.com/spreadsheets/d/1IsximMN9KrKpsREnWiNu0pbAtQ3idtjl/export?format=xlsx"
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
 
+    @st.cache_data
+def load_data():
     try:
         # Load NDVI & NDWI data
+        ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
         ndvi_ndwi_res = requests.get(ndvi_ndwi_url, timeout=30)
         ndvi_ndwi_df = pd.read_excel(BytesIO(ndvi_ndwi_res.content))
         
-        # Load Weather data (both 2023 and 2024 sheets)
-        weather_res = requests.get(weather_url, timeout=30)
-        weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
-        weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
+        # FIXED: Proper Google Drive URL for weather data
+        # Replace with the direct download link from Google Drive
+        weather_url = "https://drive.google.com/uc?export=download&id=1IsximMN9KrKpsREnWiNu0pbAtQ3idtjl"
         
-        # Combine weather data
-        weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
+        # Alternative: If the above doesn't work, try this format:
+        # weather_url = "https://docs.google.com/spreadsheets/d/1IsximMN9KrKpsREnWiNu0pbAtQ3idtjl/export?format=xlsx"
+        
+        weather_res = requests.get(weather_url, timeout=30)
+        
+        # Check if the request was successful
+        if weather_res.status_code != 200:
+            st.warning(f"Weather data download failed with status code: {weather_res.status_code}")
+            # Create empty weather DataFrames as fallback
+            weather_23_df = pd.DataFrame()
+            weather_24_df = pd.DataFrame()
+            weather_df = pd.DataFrame()
+        else:
+            # Load both weather sheets
+            weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
+            weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
+            
+            # Combine weather data
+            weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
+            
+            # Process Weather data
+            weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
+            weather_df = weather_df.dropna(subset=["Date_dt"]).copy()
+            
+            # Convert numeric columns for weather
+            for col in ["Rainfall", "Tmax", "Tmin", "max_Rh", "min_Rh"]:
+                if col in weather_df.columns:
+                    weather_df[col] = pd.to_numeric(weather_df[col], errors="coerce")
         
         # Load MAI data
+        mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
         mai_res = requests.get(mai_url, timeout=30)
         mai_df = pd.read_excel(BytesIO(mai_res.content))
         
@@ -151,33 +180,29 @@ def load_data():
         ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
         ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
         
-        # Process Weather data
-        weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
-        weather_df = weather_df.dropna(subset=["Date_dt"]).copy()
-        
-        # Convert numeric columns for weather
-        for col in ["Rainfall", "Tmax", "Tmin", "max_Rh", "min_Rh"]:
-            if col in weather_df.columns:
-                weather_df[col] = pd.to_numeric(weather_df[col], errors="coerce")
-        
         # Process MAI data
         mai_df["Year"] = pd.to_numeric(mai_df["Year"], errors="coerce")
         mai_df["MAI (%)"] = pd.to_numeric(mai_df["MAI (%)"], errors="coerce")
         
-        # Get unique locations
-        districts = sorted(weather_df["District"].dropna().unique().tolist())
-        talukas = sorted(weather_df["Taluka"].dropna().unique().tolist())
-        circles = sorted(weather_df["Circle"].dropna().unique().tolist())
+        # Get unique locations - handle case where weather data might be empty
+        if not weather_df.empty:
+            districts = sorted(weather_df["District"].dropna().unique().tolist())
+            talukas = sorted(weather_df["Taluka"].dropna().unique().tolist())
+            circles = sorted(weather_df["Circle"].dropna().unique().tolist())
+        else:
+            # Fallback: try to get locations from NDVI data
+            districts = sorted(ndvi_ndwi_df["District"].dropna().unique().tolist())
+            talukas = sorted(ndvi_ndwi_df["Taluka"].dropna().unique().tolist())
+            circles = sorted(ndvi_ndwi_df["Circle"].dropna().unique().tolist())
+            
+            st.warning("Weather data is not available. Using NDVI data for location filtering.")
         
         return weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles
         
     except Exception as e:
         st.error(f"Error loading data: {e}")
+        # Return empty DataFrames and lists
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], [], []
-
-# Load data
-weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data()
-
 # -----------------------------
 # FORTNIGHT DEFINITION
 # -----------------------------
@@ -867,3 +892,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
