@@ -207,13 +207,13 @@ def process_ndvi_ndwi_data(df):
         df_processed['Date(DD-MM-YYYY)'] = pd.to_datetime(df_processed['Date(DD-MM-YYYY)'], errors='coerce')
     
     # If date conversion failed, try other column names
-    if df_processed['Date'].isna().all() and 'Date(DD-MM-YYYY)' in df_processed.columns:
-        df_processed['Date'] = pd.to_datetime(df_processed['Date(DD-MM-YYYY)'], format='%d-%m-%Y', errors='coerce')
+    if df_processed['Date(DD-MM-YYYY)'].isna().all() and 'Date(DD-MM-YYYY)' in df_processed.columns:
+        df_processed['Date(DD-MM-YYYY)'] = pd.to_datetime(df_processed['Date(DD-MM-YYYY)'], format='%d-%m-%Y', errors='coerce')
     
     # Extract year and month for comparison
-    df_processed['Year'] = df_processed['Date'].dt.year
-    df_processed['Month'] = df_processed['Date'].dt.month_name()
-    df_processed['Month_Num'] = df_processed['Date'].dt.month
+    df_processed['Year'] = df_processed['Date(DD-MM-YYYY)'].dt.year
+    df_processed['Month'] = df_processed['Date(DD-MM-YYYY)'].dt.month_name()
+    df_processed['Month_Num'] = df_processed['Date(DD-MM-YYYY)'].dt.month
     
     return df_processed
 
@@ -1121,4 +1121,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
