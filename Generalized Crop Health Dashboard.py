@@ -125,7 +125,7 @@ def load_data():
     # Updated file paths as per requirements
     ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/blob/main/Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
     weather_url = "https://docs.google.com/spreadsheets/d/1VZ58Kv3_cC_IP_0eSWBzOvnb2sOpPUOU/edit?usp=sharing&ouid=112417876654948113262&rtpof=true&sd=true"
-    mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/blob/main/Circlewise_Data_MAI_2023_24_upload.xlsx"
+    mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/blob/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
     
     try:
         # Load NDVI & NDWI data
@@ -838,6 +838,7 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
 
 
 
