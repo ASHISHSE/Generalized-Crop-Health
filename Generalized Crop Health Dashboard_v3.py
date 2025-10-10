@@ -8,9 +8,6 @@ from io import BytesIO
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import base64
-from PIL import Image
-import io
 
 
 # --- Page Config --- 
@@ -132,13 +129,19 @@ st.markdown("""
 # WEATHER DATA OPTIONS (UPDATED - Only Uploaded File)
 # -----------------------------
 st.sidebar.info("🌤️ Weather Data Options")
-st.sidebar.info("📊 Using uploaded weather data file")
+st.sidebar.info("📊 Please upload weather data file for analysis")
+
+uploaded_weather_file = st.sidebar.file_uploader(
+    "Upload Weather Data (.xlsx)", 
+    type=['xlsx'],
+    help="File should contain sheets: 'Weather_data_23' and 'Weather_data_24'"
+)
 
 # -----------------------------
 # LOAD DATA - UPDATED with .xlsx weather file
 # -----------------------------
 @st.cache_data
-def load_data():
+def load_data(_uploaded_file=None):
     # Updated URLs as per request
     ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
@@ -153,15 +156,30 @@ def load_data():
         mai_res = requests.get(mai_url, timeout=60)
         mai_df = pd.read_excel(BytesIO(mai_res.content))
         
-        # Use uploaded weather data only
-        try:
-            weather_res = requests.get(weather_url, timeout=60)
-            weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
-            weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
-            weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
-        except:
-            st.sidebar.info("Using sample weather data.")
-            weather_df = create_sample_weather_data()
+        # Handle weather data based on uploaded file
+        if _uploaded_file is not None:
+            try:
+                # Read uploaded .xlsx file
+                weather_23_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_23')
+                weather_24_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_24')
+                
+                # Combine weather data
+                weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
+                
+            except Exception as e:
+                st.sidebar.error(f"Error reading weather file: {e}")
+                st.sidebar.info("Using uploaded file data instead.")
+                weather_df = create_sample_weather_data()
+        else:
+            # Use uploaded weather data only
+            try:
+                weather_res = requests.get(weather_url, timeout=60)
+                weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
+                weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
+                weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
+            except:
+                st.sidebar.info("Using uploaded weather data.")
+                weather_df = create_sample_weather_data()
         
         # Process NDVI & NDWI data
         ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
@@ -222,11 +240,14 @@ def create_sample_weather_data():
     
     return pd.DataFrame(sample_data)
 
-# Load data
-weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data()
+# Load data with the uploaded file
+weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data(uploaded_weather_file)
 
-# Show info message
-st.sidebar.success("✅ Weather data loaded successfully!")
+# Show info message based on weather data source
+if uploaded_weather_file is not None:
+    st.sidebar.success("✅ Weather data loaded successfully!")
+else:
+    st.sidebar.warning("⚠️ Please upload weather data file for analysis")
 
 # -----------------------------
 # FORTNIGHT DEFINITION
@@ -322,22 +343,22 @@ def create_fortnightly_comparison_chart(current_year_data, last_year_data, title
     
     fig = go.Figure()
     
-    # UPDATED: Changed order and colors - 2023 first with blue color
+    # UPDATED: Changed legend order and colors
     fig.add_trace(go.Scatter(
-        name='2023',
+        name='2023',  # Changed order
         x=all_periods,
         y=last_values,
         mode='lines+markers',
-        line=dict(color='#1f77b4', width=3),  # Blue color for 2023
+        line=dict(color='#1f77b4', width=3, dash='dash'),  # Blue color for 2023
         marker=dict(size=8, symbol='square')
     ))
     
     fig.add_trace(go.Scatter(
-        name='2024',
+        name='2024',  # Changed order
         x=all_periods,
         y=current_values,
         mode='lines+markers',
-        line=dict(color='#ff7f0e', width=3, dash='dash'),  # Orange color for 2024
+        line=dict(color='#2d6a4f', width=3),  # Green color for 2024
         marker=dict(size=8, symbol='circle')
     ))
     
@@ -380,9 +401,9 @@ def create_monthly_clustered_chart(current_year_data, last_year_data, title, yax
     # Create subplots
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
-    # UPDATED: Changed order and colors - 2023 first with blue color
+    # UPDATED: Changed legend order and colors
     fig.add_trace(go.Bar(
-        name='2023',
+        name='2023',  # Changed order
         x=all_months,
         y=last_values,
         marker_color='#1f77b4',  # Blue color for 2023
@@ -392,16 +413,16 @@ def create_monthly_clustered_chart(current_year_data, last_year_data, title, yax
     ), secondary_y=False)
     
     fig.add_trace(go.Bar(
-        name='2024',
+        name='2024',  # Changed order
         x=all_months,
         y=current_values,
-        marker_color='#ff7f0e',  # Orange color for 2024
+        marker_color='#2d6a4f',  # Green color for 2024
         text=[f"{x:.2f}" for x in current_values],
         textposition='auto',
         textfont=dict(weight='bold')
     ), secondary_y=False)
     
-    # Add deviation line (keeping red color for deviation)
+    # Add deviation line (keeping deviation color as it is - red)
     fig.add_trace(go.Scatter(
         name='Deviation (%)',
         x=all_months,
@@ -476,7 +497,7 @@ def create_fortnightly_deviation_chart(current_year_data, last_year_data, title,
     return fig
 
 def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, end_date):
-    """Create NDVI comparison chart between 2023 and 2024 using all dates between start and end"""
+    """Create NDVI comparison chart between 2023 and 2024 with dates instead of months"""
     filtered_df = ndvi_df.copy()
     
     if district:
@@ -486,42 +507,65 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
     
-    # UPDATED: Filter for all dates between start_date and end_date for both years
+    # Filter for selected date range
     filtered_df = filtered_df[
-        (filtered_df["Date_dt"] >= pd.Timestamp(start_date)) & 
-        (filtered_df["Date_dt"] <= pd.Timestamp(end_date)) &
+        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
+        (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
         (filtered_df["Date_dt"].dt.year.isin([2023, 2024]))
     ]
     
     if filtered_df.empty:
         return None
     
-    # Create line chart with consistent colors for same years
-    fig = px.line(
-        filtered_df, 
-        x='Date_dt', 
-        y='NDVI', 
-        color=filtered_df['Date_dt'].dt.year.astype(str),
-        title=f"NDVI Comparison: 2023 vs 2024 - {level}: {level_name}",
-        markers=True,
-        color_discrete_map={'2023': '#1f77b4', '2024': '#ff7f0e'}  # Consistent blue and orange
-    )
+    # Create line chart with actual dates
+    fig = go.Figure()
+    
+    # Separate data for 2023 and 2024
+    df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
+    df_2024 = filtered_df[filtered_df["Date_dt"].dt.year == 2024].copy()
+    
+    # Sort by date
+    df_2023 = df_2023.sort_values("Date_dt")
+    df_2024 = df_2024.sort_values("Date_dt")
+    
+    # Add traces for each year
+    if not df_2023.empty:
+        fig.add_trace(go.Scatter(
+            x=df_2023["Date_dt"],
+            y=df_2023["NDVI"],
+            mode='lines+markers',
+            name='2023',
+            line=dict(color='#FF6B00', width=3),  # Strong orange for 2023
+            marker=dict(size=6)
+        ))
+    
+    if not df_2024.empty:
+        fig.add_trace(go.Scatter(
+            x=df_2024["Date_dt"],
+            y=df_2024["NDVI"],
+            mode='lines+markers',
+            name='2024',
+            line=dict(color='#2E00FF', width=3),  # Strong blue for 2024
+            marker=dict(size=6)
+        ))
     
     fig.update_layout(
+        title=dict(text=f"NDVI Comparison: 2023 vs 2024 - {level}: {level_name}", x=0.5, xanchor='center'),
         xaxis_title="Date",
         yaxis_title="NDVI",
         template='plotly_white',
         height=400,
-        legend_title="Year"
+        hovermode='x unified',
+        xaxis=dict(
+            tickformat='%d-%m-%Y',
+            tickangle=45
+        )
     )
-    
-    # Update line widths for better visibility
-    fig.update_traces(line=dict(width=3))
     
     return fig
 
 def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, end_date):
-    """Create NDWI comparison chart between 2023 and 2024 using all dates between start and end"""
+    """Create NDWI comparison chart between 2023 and 2024 with dates instead of months"""
     filtered_df = ndwi_df.copy()
     
     if district:
@@ -531,42 +575,65 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
     
-    # UPDATED: Filter for all dates between start_date and end_date for both years
+    # Filter for selected date range
     filtered_df = filtered_df[
-        (filtered_df["Date_dt"] >= pd.Timestamp(start_date)) & 
-        (filtered_df["Date_dt"] <= pd.Timestamp(end_date)) &
+        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
+        (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
         (filtered_df["Date_dt"].dt.year.isin([2023, 2024]))
     ]
     
     if filtered_df.empty:
         return None
     
-    # Create line chart with consistent colors for same years
-    fig = px.line(
-        filtered_df, 
-        x='Date_dt', 
-        y='NDWI', 
-        color=filtered_df['Date_dt'].dt.year.astype(str),
-        title=f"NDWI Comparison: 2023 vs 2024 - {level}: {level_name}",
-        markers=True,
-        color_discrete_map={'2023': '#1f77b4', '2024': '#ff7f0e'}  # Consistent blue and orange
-    )
+    # Create line chart with actual dates
+    fig = go.Figure()
+    
+    # Separate data for 2023 and 2024
+    df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
+    df_2024 = filtered_df[filtered_df["Date_dt"].dt.year == 2024].copy()
+    
+    # Sort by date
+    df_2023 = df_2023.sort_values("Date_dt")
+    df_2024 = df_2024.sort_values("Date_dt")
+    
+    # Add traces for each year
+    if not df_2023.empty:
+        fig.add_trace(go.Scatter(
+            x=df_2023["Date_dt"],
+            y=df_2023["NDWI"],
+            mode='lines+markers',
+            name='2023',
+            line=dict(color='#FF00FF', width=3),  # Strong magenta for 2023
+            marker=dict(size=6)
+        ))
+    
+    if not df_2024.empty:
+        fig.add_trace(go.Scatter(
+            x=df_2024["Date_dt"],
+            y=df_2024["NDWI"],
+            mode='lines+markers',
+            name='2024',
+            line=dict(color='#00AA00', width=3),  # Strong green for 2024
+            marker=dict(size=6)
+        ))
     
     fig.update_layout(
+        title=dict(text=f"NDWI Comparison: 2023 vs 2024 - {level}: {level_name}", x=0.5, xanchor='center'),
         xaxis_title="Date",
         yaxis_title="NDWI",
         template='plotly_white',
         height=400,
-        legend_title="Year"
+        hovermode='x unified',
+        xaxis=dict(
+            tickformat='%d-%m-%Y',
+            tickangle=45
+        )
     )
-    
-    # Update line widths for better visibility
-    fig.update_traces(line=dict(width=3))
     
     return fig
 
 def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, start_date, end_date):
-    """Create deviation chart for NDVI and NDWI"""
+    """Create deviation chart for NDVI and NDWI using dates"""
     filtered_df = ndvi_ndwi_df.copy()
     
     if district:
@@ -578,82 +645,85 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
     
     # Filter for selected date range
     filtered_df = filtered_df[
-        (filtered_df["Date_dt"] >= pd.Timestamp(start_date)) & 
-        (filtered_df["Date_dt"] <= pd.Timestamp(end_date)) &
+        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
+        (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
         (filtered_df["Date_dt"].dt.year.isin([2023, 2024]))
     ]
     
     if filtered_df.empty:
         return None
     
-    # Calculate monthly averages
+    # Calculate daily averages and deviations
     filtered_df['Year'] = filtered_df['Date_dt'].dt.year
-    filtered_df['Month'] = filtered_df['Date_dt'].dt.month
     
-    monthly_avg = filtered_df.groupby(['Year', 'Month'])[['NDVI', 'NDWI']].mean().reset_index()
-    monthly_avg[['NDVI', 'NDWI']] = monthly_avg[['NDVI', 'NDWI']].round(2)
-    
-    # Calculate deviations
-    monthly_2023 = monthly_avg[monthly_avg['Year'] == 2023]
-    monthly_2024 = monthly_avg[monthly_avg['Year'] == 2024]
-    
-    deviations = []
-    months_in_range = range(start_date.month, end_date.month + 1)
-    for month in months_in_range:
-        ndvi_2023 = monthly_2023[monthly_2023['Month'] == month]['NDVI'].values
-        ndvi_2024 = monthly_2024[monthly_2024['Month'] == month]['NDVI'].values
-        ndwi_2023 = monthly_2023[monthly_2023['Month'] == month]['NDWI'].values
-        ndwi_2024 = monthly_2024[monthly_2024['Month'] == month]['NDWI'].values
+    # Get common dates between years
+    common_dates = []
+    for date_val in filtered_df['Date_dt'].unique():
+        date_2023 = filtered_df[(filtered_df['Date_dt'] == date_val) & (filtered_df['Year'] == 2023)]
+        date_2024 = filtered_df[(filtered_df['Date_dt'] == date_val) & (filtered_df['Year'] == 2024)]
         
-        if len(ndvi_2023) > 0 and len(ndvi_2024) > 0 and ndvi_2023[0] != 0:
-            ndvi_dev = ((ndvi_2024[0] - ndvi_2023[0]) / ndvi_2023[0]) * 100
-        else:
-            ndvi_dev = 0
+        if not date_2023.empty and not date_2024.empty:
+            ndvi_2023 = date_2023['NDVI'].iloc[0]
+            ndvi_2024 = date_2024['NDVI'].iloc[0]
+            ndwi_2023 = date_2023['NDWI'].iloc[0]
+            ndwi_2024 = date_2024['NDWI'].iloc[0]
             
-        if len(ndwi_2023) > 0 and len(ndwi_2024) > 0 and ndwi_2023[0] != 0:
-            ndwi_dev = ((ndwi_2024[0] - ndwi_2023[0]) / ndwi_2023[0]) * 100
-        else:
-            ndwi_dev = 0
-            
-        deviations.append({
-            'Month': month,
-            'NDVI_Deviation': round(ndvi_dev, 2),
-            'NDWI_Deviation': round(ndwi_dev, 2)
-        })
+            if ndvi_2023 != 0:
+                ndvi_dev = ((ndvi_2024 - ndvi_2023) / ndvi_2023) * 100
+            else:
+                ndvi_dev = 0
+                
+            if ndwi_2023 != 0:
+                ndwi_dev = ((ndwi_2024 - ndwi_2023) / ndwi_2023) * 100
+            else:
+                ndwi_dev = 0
+                
+            common_dates.append({
+                'Date': date_val,
+                'NDVI_Deviation': round(ndvi_dev, 2),
+                'NDWI_Deviation': round(ndwi_dev, 2)
+            })
     
-    dev_df = pd.DataFrame(deviations)
+    if not common_dates:
+        return None
+        
+    dev_df = pd.DataFrame(common_dates)
+    dev_df = dev_df.sort_values('Date')
     
-    # Create deviation chart
+    # Create deviation chart with dates
     fig = go.Figure()
     
-    fig.add_trace(go.Bar(
+    fig.add_trace(go.Scatter(
         name='NDVI Deviation (%)',
-        x=dev_df['Month'],
+        x=dev_df['Date'],
         y=dev_df['NDVI_Deviation'],
-        marker_color='#27ae60',
-        text=[f"{x:+.1f}%" for x in dev_df['NDVI_Deviation']],
-        textposition='auto',
-        textfont=dict(weight='bold')
+        mode='lines+markers',
+        line=dict(color='#27ae60', width=3),
+        marker=dict(size=6)
     ))
     
-    fig.add_trace(go.Bar(
+    fig.add_trace(go.Scatter(
         name='NDWI Deviation (%)',
-        x=dev_df['Month'],
+        x=dev_df['Date'],
         y=dev_df['NDWI_Deviation'],
-        marker_color='#3498db',
-        text=[f"{x:+.1f}%" for x in dev_df['NDWI_Deviation']],
-        textposition='auto',
-        textfont=dict(weight='bold')
+        mode='lines+markers',
+        line=dict(color='#3498db', width=3),
+        marker=dict(size=6)
     ))
+    
+    # Add zero reference line
+    fig.add_hline(y=0, line_dash="dash", line_color="black", opacity=0.5)
     
     fig.update_layout(
-        title=dict(text=f"NDVI & NDWI Monthly Deviation (2024 vs 2023) - {level}: {level_name}", x=0.5, xanchor='center'),
-        xaxis_title="Month",
+        title=dict(text=f"NDVI & NDWI Daily Deviation (2024 vs 2023) - {level}: {level_name}", x=0.5, xanchor='center'),
+        xaxis_title="Date",
         yaxis_title="Deviation (%)",
-        barmode='group',
         template='plotly_white',
         height=400,
-        xaxis=dict(tickmode='linear', tick0=1, dtick=1)
+        xaxis=dict(
+            tickformat='%d-%m-%Y',
+            tickangle=45
+        )
     )
     
     return fig
@@ -710,9 +780,9 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     # Create subplots
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
-    # UPDATED: Changed order and colors - 2023 first with blue color
+    # UPDATED: Changed legend order and colors
     fig.add_trace(go.Bar(
-        name='2023',
+        name='2023',  # Changed order
         x=months,
         y=values_2023,
         marker_color='#1f77b4',  # Blue color for 2023
@@ -722,16 +792,16 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     ), secondary_y=False)
     
     fig.add_trace(go.Bar(
-        name='2024',
+        name='2024',  # Changed order
         x=months,
         y=values_2024,
-        marker_color='#ff7f0e',  # Orange color for 2024
+        marker_color='#2d6a4f',  # Green color for 2024
         text=[f"{x:.2f}%" for x in values_2024],
         textposition='auto',
         textfont=dict(weight='bold')
     ), secondary_y=False)
     
-    # Add deviation line (keeping red color for deviation)
+    # Add deviation line (keeping deviation color as it is - red)
     fig.add_trace(go.Scatter(
         name='Deviation (%)',
         x=months,
@@ -760,24 +830,22 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     return fig
 
 # -----------------------------
-# DOWNLOAD FUNCTIONS - SIMPLIFIED
+# DOWNLOAD FUNCTIONS - FIXED
 # -----------------------------
 def download_chart_as_image(fig, filename):
-    """Download Plotly chart as JPG image - FIXED version"""
+    """Download Plotly chart as PNG image - FIXED version"""
     try:
-        # Convert plot to image bytes
-        img_bytes = fig.to_image(format="jpg", width=1200, height=600, engine="kaleido")
+        img_bytes = fig.to_image(format="png", width=1200, height=600)
         st.download_button(
-            label=f"📥 Download {filename} as JPG",
+            label=f"📥 Download {filename} as PNG",
             data=img_bytes,
-            file_name=f"{filename}.jpg",
-            mime="image/jpeg",
+            file_name=f"{filename}.png",
+            mime="image/png",
             key=f"download_{filename}_{np.random.randint(1000)}"
         )
     except Exception as e:
-        # Fallback: Show warning and provide alternative
-        st.warning(f"Could not generate JPG for {filename}. Please take a screenshot instead.")
-        st.info("Tip: Use your browser's screenshot functionality (Ctrl+Shift+S) to capture the chart.")
+        st.warning(f"Could not download {filename}: {str(e)}")
+        st.info("Please make sure Kaleido is installed: pip install kaleido")
 
 def download_data_as_csv(data_df, filename):
     """Download DataFrame as CSV"""
@@ -888,7 +956,7 @@ if generate:
         # Create tabs
         tab1, tab2, tab3 = st.tabs(["🌤️ Weather Metrics", "📡 Remote Sensing Indices", "💾 Download Data"])
 
-        # TAB 1: WEATHER METRICS (UPDATED COLORS)
+        # TAB 1: WEATHER METRICS
         with tab1:
             st.header(f"🌤️ Weather Metrics - {level}: {level_name}")
             
@@ -936,8 +1004,213 @@ if generate:
                 )
                 st.plotly_chart(fig_rainfall_monthly, use_container_width=True)
 
-                # Continue with other weather metrics sections...
-                # (The rest of the weather metrics code remains the same but will use updated colors)
+                # II. Rainy Days Analysis
+                st.subheader("II. Rainy Days Analysis")
+                
+                # Fortnightly Analysis
+                st.markdown("##### Fortnightly Analysis")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly Rainy Days
+                    fortnightly_rainy_days = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "Rainfall", "count"
+                    )
+                    fig_rainy_fortnight = create_fortnightly_comparison_chart(
+                        fortnightly_rainy_days[current_year], 
+                        fortnightly_rainy_days[last_year],
+                        "Rainy Days - Fortnightly Comparison (2023 vs 2024)",
+                        "Number of Rainy Days"
+                    )
+                    st.plotly_chart(fig_rainy_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Fortnightly Rainy Days Deviation
+                    fig_rainy_dev_fortnight = create_fortnightly_deviation_chart(
+                        fortnightly_rainy_days[current_year], 
+                        fortnightly_rainy_days[last_year],
+                        "Rainy Days Deviation - Fortnightly (%)",
+                        "Deviation (%)"
+                    )
+                    st.plotly_chart(fig_rainy_dev_fortnight, use_container_width=True)
+                
+                # Monthly Analysis
+                st.markdown("##### Monthly Analysis")
+                monthly_rainy_days = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "Rainfall", "count"
+                )
+                fig_rainy_monthly = create_monthly_clustered_chart(
+                    monthly_rainy_days[current_year], 
+                    monthly_rainy_days[last_year],
+                    "Rainy Days - Monthly Comparison with Deviation (2023 vs 2024)",
+                    "Number of Rainy Days"
+                )
+                st.plotly_chart(fig_rainy_monthly, use_container_width=True)
+
+                # III. Temperature Analysis
+                st.subheader("III. Temperature Analysis")
+                
+                # Maximum Temperature
+                st.markdown("##### Maximum Temperature")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly Tmax
+                    fortnightly_tmax = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "Tmax", "mean"
+                    )
+                    fig_tmax_fortnight = create_fortnightly_comparison_chart(
+                        fortnightly_tmax[current_year], 
+                        fortnightly_tmax[last_year],
+                        "Max Temperature - Fortnightly Average (2023 vs 2024)",
+                        "Temperature (°C)"
+                    )
+                    st.plotly_chart(fig_tmax_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Fortnightly Tmax Deviation
+                    fig_tmax_dev_fortnight = create_fortnightly_deviation_chart(
+                        fortnightly_tmax[current_year], 
+                        fortnightly_tmax[last_year],
+                        "Max Temperature Deviation - Fortnightly",
+                        "Deviation (°C)"
+                    )
+                    st.plotly_chart(fig_tmax_dev_fortnight, use_container_width=True)
+                
+                # Monthly Tmax
+                monthly_tmax = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "Tmax", "mean"
+                )
+                fig_tmax_monthly = create_monthly_clustered_chart(
+                    monthly_tmax[current_year], 
+                    monthly_tmax[last_year],
+                    "Max Temperature - Monthly Average with Deviation (2023 vs 2024)",
+                    "Temperature (°C)"
+                )
+                st.plotly_chart(fig_tmax_monthly, use_container_width=True)
+
+                # Minimum Temperature
+                st.markdown("##### Minimum Temperature")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly Tmin
+                    fortnightly_tmin = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "Tmin", "mean"
+                    )
+                    fig_tmin_fortnight = create_fortnightly_comparison_chart(
+                        fortnightly_tmin[current_year], 
+                        fortnightly_tmin[last_year],
+                        "Min Temperature - Fortnightly Average (2023 vs 2024)",
+                        "Temperature (°C)"
+                    )
+                    st.plotly_chart(fig_tmin_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Fortnightly Tmin Deviation
+                    fig_tmin_dev_fortnight = create_fortnightly_deviation_chart(
+                        fortnightly_tmin[current_year], 
+                        fortnightly_tmin[last_year],
+                        "Min Temperature Deviation - Fortnightly",
+                        "Deviation (°C)"
+                    )
+                    st.plotly_chart(fig_tmin_dev_fortnight, use_container_width=True)
+                
+                # Monthly Tmin
+                monthly_tmin = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "Tmin", "mean"
+                )
+                fig_tmin_monthly = create_monthly_clustered_chart(
+                    monthly_tmin[current_year], 
+                    monthly_tmin[last_year],
+                    "Min Temperature - Monthly Average with Deviation (2023 vs 2024)",
+                    "Temperature (°C)"
+                )
+                st.plotly_chart(fig_tmin_monthly, use_container_width=True)
+
+                # IV. Relative Humidity Analysis
+                st.subheader("IV. Relative Humidity Analysis")
+                
+                # Maximum RH
+                st.markdown("##### Maximum Relative Humidity")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly RH max
+                    fortnightly_rh_max = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "max_Rh", "mean"
+                    )
+                    fig_rh_max_fortnight = create_fortnightly_comparison_chart(
+                        fortnightly_rh_max[current_year], 
+                        fortnightly_rh_max[last_year],
+                        "Max RH - Fortnightly Average (2023 vs 2024)",
+                        "Relative Humidity (%)"
+                    )
+                    st.plotly_chart(fig_rh_max_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Fortnightly RH Max Deviation
+                    fig_rh_max_dev_fortnight = create_fortnightly_deviation_chart(
+                        fortnightly_rh_max[current_year], 
+                        fortnightly_rh_max[last_year],
+                        "Max RH Deviation - Fortnightly",
+                        "Deviation (%)"
+                    )
+                    st.plotly_chart(fig_rh_max_dev_fortnight, use_container_width=True)
+                
+                # Monthly RH max
+                monthly_rh_max = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "max_Rh", "mean"
+                )
+                fig_rh_max_monthly = create_monthly_clustered_chart(
+                    monthly_rh_max[current_year], 
+                    monthly_rh_max[last_year],
+                    "Max RH - Monthly Average with Deviation (2023 vs 2024)",
+                    "Relative Humidity (%)"
+                )
+                st.plotly_chart(fig_rh_max_monthly, use_container_width=True)
+
+                # Minimum RH
+                st.markdown("##### Minimum Relative Humidity")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Fortnightly RH min
+                    fortnightly_rh_min = calculate_fortnightly_metrics(
+                        filtered_weather, current_year, last_year, "min_Rh", "mean"
+                    )
+                    fig_rh_min_fortnight = create_fortnightly_comparison_chart(
+                        fortnightly_rh_min[current_year], 
+                        fortnightly_rh_min[last_year],
+                        "Min RH - Fortnightly Average (2023 vs 2024)",
+                        "Relative Humidity (%)"
+                    )
+                    st.plotly_chart(fig_rh_min_fortnight, use_container_width=True)
+                
+                with col2:
+                    # Fortnightly RH Min Deviation
+                    fig_rh_min_dev_fortnight = create_fortnightly_deviation_chart(
+                        fortnightly_rh_min[current_year], 
+                        fortnightly_rh_min[last_year],
+                        "Min RH Deviation - Fortnightly",
+                        "Deviation (%)"
+                    )
+                    st.plotly_chart(fig_rh_min_dev_fortnight, use_container_width=True)
+                
+                # Monthly RH min
+                monthly_rh_min = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "min_Rh", "mean"
+                )
+                fig_rh_min_monthly = create_monthly_clustered_chart(
+                    monthly_rh_min[current_year], 
+                    monthly_rh_min[last_year],
+                    "Min RH - Monthly Average with Deviation (2023 vs 2024)",
+                    "Relative Humidity (%)"
+                )
+                st.plotly_chart(fig_rh_min_monthly, use_container_width=True)
+                
+            else:
+                st.info("No weather data available for the selected location and date range.")
 
         # TAB 2: REMOTE SENSING INDICES (UPDATED)
         with tab2:
@@ -983,12 +1256,12 @@ if generate:
             else:
                 st.info("No MAI data available for the selected parameters.")
 
-        # TAB 3: DOWNLOAD DATA (SIMPLIFIED)
+        # TAB 3: DOWNLOAD DATA (FIXED)
         with tab3:
             st.header(f"💾 Download Data - {level}: {level_name}")
             
-            # Download Charts Section - SIMPLIFIED
-            st.subheader("Download Charts as JPG")
+            # Download Charts Section - FIXED
+            st.subheader("Download Charts")
             
             # Weather Charts
             st.markdown("##### Weather Metrics Charts")
@@ -1006,7 +1279,7 @@ if generate:
                 if 'fig_tmin_fortnight' in locals():
                     download_chart_as_image(fig_tmin_fortnight, "Min_Temperature_Fortnightly")
             
-            # Remote Sensing Charts - SIMPLIFIED
+            # Remote Sensing Charts
             st.markdown("##### Remote Sensing Charts")
             col1, col2 = st.columns(2)
             
@@ -1022,8 +1295,8 @@ if generate:
                 if 'mai_monthly_fig' in locals() and mai_monthly_fig:
                     download_chart_as_image(mai_monthly_fig, "MAI_Monthly_Chart")
             
-            # Download Data Section - SIMPLIFIED
-            st.subheader("Download Data Tables as CSV")
+            # Download Data Section
+            st.subheader("Download Data Tables")
             
             col1, col2, col3 = st.columns(3)
             
