@@ -8,7 +8,6 @@ from io import BytesIO
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import pyxlsb  # For reading .xlsb files
 
 # --- Page Config --- 
 st.set_page_config(
@@ -132,19 +131,20 @@ weather_option = st.sidebar.radio(
 uploaded_weather_file = None
 if weather_option == "Upload Weather Data File":
     uploaded_weather_file = st.sidebar.file_uploader(
-        "Upload Weather Data (.xlsx or .xlsb)", 
-        type=['xlsx', 'xlsb'],
+        "Upload Weather Data (.xlsx)", 
+        type=['xlsx'],
         help="File should contain sheets: 'Weather_data_23' and 'Weather_data_24'"
     )
 
 # -----------------------------
-# LOAD DATA - UPDATED with widget removed
+# LOAD DATA - UPDATED with .xlsx weather file
 # -----------------------------
 @st.cache_data
 def load_data(_uploaded_file=None):
     # Updated URLs as per request
     ndvi_ndwi_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Maharashtra_NDVI_NDWI_old_circle_2023_2024_upload.xlsx"
     mai_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/1Circlewise_Data_MAI_2023_24_upload.xlsx"
+    weather_url = "https://github.com/ASHISHSE/Generalized-Crop-Health/raw/main/weather_data_2023_24_upload.xlsx"
 
     try:
         # Load NDVI & NDWI data
@@ -155,43 +155,12 @@ def load_data(_uploaded_file=None):
         mai_res = requests.get(mai_url, timeout=60)
         mai_df = pd.read_excel(BytesIO(mai_res.content))
         
-        # Process NDVI & NDWI data
-        ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
-        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
-        
-        # Process MAI data
-        mai_df["Year"] = pd.to_numeric(mai_df["Year"], errors="coerce")
-        mai_df["MAI (%)"] = pd.to_numeric(mai_df["MAI (%)"], errors="coerce")
-        
         # Handle weather data based on uploaded file
         if _uploaded_file is not None:
             try:
-                if _uploaded_file.name.endswith('.xlsb'):
-                    # Read .xlsb file
-                    with pyxlsb.open_workbook(_uploaded_file) as wb:
-                        weather_23_df = pd.DataFrame()
-                        weather_24_df = pd.DataFrame()
-                        
-                        # Read Weather_data_23 sheet
-                        with wb.get_sheet('Weather_data_23') as sheet:
-                            data = []
-                            for row in sheet.rows():
-                                data.append([item.v for item in row])
-                            if data:
-                                weather_23_df = pd.DataFrame(data[1:], columns=data[0])
-                        
-                        # Read Weather_data_24 sheet
-                        with wb.get_sheet('Weather_data_24') as sheet:
-                            data = []
-                            for row in sheet.rows():
-                                data.append([item.v for item in row])
-                            if data:
-                                weather_24_df = pd.DataFrame(data[1:], columns=data[0])
-                
-                else:
-                    # Read .xlsx file
-                    weather_23_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_23')
-                    weather_24_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_24')
+                # Read uploaded .xlsx file
+                weather_23_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_23')
+                weather_24_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_24')
                 
                 # Combine weather data
                 weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
@@ -201,8 +170,23 @@ def load_data(_uploaded_file=None):
                 st.sidebar.info("Using sample data instead.")
                 weather_df = create_sample_weather_data()
         else:
-            # Use sample data
-            weather_df = create_sample_weather_data()
+            # Use online weather data
+            try:
+                weather_res = requests.get(weather_url, timeout=60)
+                weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
+                weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
+                weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
+            except:
+                st.sidebar.info("Using sample weather data.")
+                weather_df = create_sample_weather_data()
+        
+        # Process NDVI & NDWI data
+        ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
+        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
+        
+        # Process MAI data
+        mai_df["Year"] = pd.to_numeric(mai_df["Year"], errors="coerce")
+        mai_df["MAI (%)"] = pd.to_numeric(mai_df["MAI (%)"], errors="coerce")
         
         # Process Weather data
         weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
@@ -270,9 +254,9 @@ elif uploaded_weather_file is not None:
 def get_fortnight(date_obj):
     """Get fortnight from date (1st or 2nd)"""
     if date_obj.day <= 15:
-        return f"1FN {date_obj.strftime('%B')}"
+        return f"1FN {date_obj.strftime('%b')}"
     else:
-        return f"2FN {date_obj.strftime('%B')}"
+        return f"2FN {date_obj.strftime('%b')}"
 
 def get_fortnight_period(date_obj):
     """Get start and end dates for a fortnight"""
@@ -338,8 +322,8 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
 # -----------------------------
 # CHART CREATION FUNCTIONS
 # -----------------------------
-def create_weather_comparison_chart(current_year_data, last_year_data, title, yaxis_title):
-    """Create comparison chart for weather metrics"""
+def create_fortnightly_comparison_chart(current_year_data, last_year_data, title, yaxis_title):
+    """Create fortnightly comparison chart with better visualization"""
     # Get all possible periods
     all_periods = sorted(set(current_year_data.index) | set(last_year_data.index))
     
@@ -348,51 +332,129 @@ def create_weather_comparison_chart(current_year_data, last_year_data, title, ya
     
     fig = go.Figure()
     
-    fig.add_trace(go.Bar(
+    fig.add_trace(go.Scatter(
         name=f'Current Year',
         x=all_periods,
         y=current_values,
-        marker_color='#2d6a4f'
+        mode='lines+markers',
+        line=dict(color='#2d6a4f', width=3),
+        marker=dict(size=8, symbol='circle')
     ))
     
-    fig.add_trace(go.Bar(
+    fig.add_trace(go.Scatter(
         name=f'Previous Year',
         x=all_periods,
         y=last_values,
-        marker_color='#52b788'
+        mode='lines+markers',
+        line=dict(color='#52b788', width=3, dash='dash'),
+        marker=dict(size=8, symbol='square')
     ))
     
     fig.update_layout(
-        title=title,
-        xaxis_title="Period",
+        title=dict(text=title, x=0.5, xanchor='center'),
+        xaxis_title="Fortnight",
         yaxis_title=yaxis_title,
-        barmode='group',
         template='plotly_white',
-        height=400
+        height=400,
+        hovermode='x unified',
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     
     return fig
 
-def create_deviation_chart(current_year_data, last_year_data, title, yaxis_title):
-    """Create deviation chart"""
+def create_monthly_clustered_chart(current_year_data, last_year_data, title, yaxis_title):
+    """Create monthly clustered column chart with side-by-side bars and deviation"""
+    # Month order for proper sorting
+    month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
+                  'July', 'August', 'September', 'October', 'November', 'December']
+    
+    all_months = sorted(set(current_year_data.index) | set(last_year_data.index), 
+                       key=lambda x: month_order.index(x) if x in month_order else len(month_order))
+    
+    current_values = [current_year_data.get(month, 0) for month in all_months]
+    last_values = [last_year_data.get(month, 0) for month in all_months]
+    
+    # Calculate deviations
+    deviations = []
+    deviation_labels = []
+    for curr, last in zip(current_values, last_values):
+        if last != 0:
+            deviation = ((curr - last) / last) * 100
+            deviations.append(deviation)
+            deviation_labels.append(f"{deviation:+.1f}%")
+        else:
+            deviations.append(0)
+            deviation_labels.append("N/A")
+    
+    # Create subplots
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # Add bars for current and last year
+    fig.add_trace(go.Bar(
+        name='Current Year',
+        x=all_months,
+        y=current_values,
+        marker_color='#2d6a4f',
+        text=current_values,
+        textposition='auto',
+    ), secondary_y=False)
+    
+    fig.add_trace(go.Bar(
+        name='Last Year',
+        x=all_months,
+        y=last_values,
+        marker_color='#52b788',
+        text=last_values,
+        textposition='auto',
+    ), secondary_y=False)
+    
+    # Add deviation line
+    fig.add_trace(go.Scatter(
+        name='Deviation (%)',
+        x=all_months,
+        y=deviations,
+        mode='lines+markers+text',
+        line=dict(color='#ff6b6b', width=3),
+        marker=dict(size=8, symbol='diamond'),
+        text=deviation_labels,
+        textposition="top center",
+        textfont=dict(color='#d63031', size=10)
+    ), secondary_y=True)
+    
+    fig.update_layout(
+        title=dict(text=title, x=0.5, xanchor='center'),
+        xaxis_title="Month",
+        yaxis_title=yaxis_title,
+        barmode='group',
+        template='plotly_white',
+        height=450,
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    fig.update_yaxes(title_text="Deviation (%)", secondary_y=True)
+    
+    return fig
+
+def create_fortnightly_deviation_chart(current_year_data, last_year_data, title, yaxis_title):
+    """Create fortnightly deviation chart"""
     all_periods = sorted(set(current_year_data.index) | set(last_year_data.index))
     
     deviations = []
+    deviation_labels = []
     for period in all_periods:
         current_val = current_year_data.get(period, 0)
         last_val = last_year_data.get(period, 0)
         
         if last_val != 0:
-            if 'Deviation (%)' in title:
-                deviation = ((current_val - last_val) / last_val) * 100
-            else:
-                deviation = current_val - last_val
+            deviation = ((current_val - last_val) / last_val) * 100
+            deviations.append(deviation)
+            deviation_labels.append(f"{deviation:+.1f}%")
         else:
-            deviation = 0
-        
-        deviations.append(deviation)
+            deviations.append(0)
+            deviation_labels.append("N/A")
     
-    colors = ['green' if x >= 0 else 'red' for x in deviations]
+    colors = ['#2ecc71' if x >= 0 else '#e74c3c' for x in deviations]
     
     fig = go.Figure()
     
@@ -400,15 +462,21 @@ def create_deviation_chart(current_year_data, last_year_data, title, yaxis_title
         x=all_periods,
         y=deviations,
         marker_color=colors,
+        text=deviation_labels,
+        textposition='auto',
         name='Deviation'
     ))
     
+    # Add zero reference line
+    fig.add_hline(y=0, line_dash="dash", line_color="black", opacity=0.5)
+    
     fig.update_layout(
-        title=title,
-        xaxis_title="Period",
+        title=dict(text=title, x=0.5, xanchor='center'),
+        xaxis_title="Fortnight",
         yaxis_title=yaxis_title,
         template='plotly_white',
-        height=400
+        height=400,
+        showlegend=False
     )
     
     return fig
@@ -625,14 +693,16 @@ if generate:
                 # I. Rainfall Analysis
                 st.subheader("I. Rainfall Analysis")
                 
+                # Fortnightly Analysis
+                st.markdown("##### Fortnightly Analysis")
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    # Fortnightly Rainfall
+                    # Fortnightly Rainfall Comparison
                     fortnightly_rainfall = calculate_fortnightly_metrics(
                         filtered_weather, current_year, last_year, "Rainfall", "sum"
                     )
-                    fig_rainfall_fortnight = create_weather_comparison_chart(
+                    fig_rainfall_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rainfall[current_year], 
                         fortnightly_rainfall[last_year],
                         "Rainfall - Fortnightly Comparison",
@@ -641,25 +711,8 @@ if generate:
                     st.plotly_chart(fig_rainfall_fortnight, use_container_width=True)
                 
                 with col2:
-                    # Monthly Rainfall
-                    monthly_rainfall = calculate_monthly_metrics(
-                        filtered_weather, current_year, last_year, "Rainfall", "sum"
-                    )
-                    fig_rainfall_monthly = create_weather_comparison_chart(
-                        monthly_rainfall[current_year], 
-                        monthly_rainfall[last_year],
-                        "Rainfall - Monthly Comparison",
-                        "Rainfall (mm)"
-                    )
-                    st.plotly_chart(fig_rainfall_monthly, use_container_width=True)
-                
-                # Rainfall Deviation
-                st.subheader("Rainfall Deviation")
-                dev_col1, dev_col2 = st.columns(2)
-                
-                with dev_col1:
-                    # Fortnightly Deviation
-                    fig_rainfall_dev_fortnight = create_deviation_chart(
+                    # Fortnightly Rainfall Deviation
+                    fig_rainfall_dev_fortnight = create_fortnightly_deviation_chart(
                         fortnightly_rainfall[current_year], 
                         fortnightly_rainfall[last_year],
                         "Rainfall Deviation - Fortnightly (%)",
@@ -667,19 +720,24 @@ if generate:
                     )
                     st.plotly_chart(fig_rainfall_dev_fortnight, use_container_width=True)
                 
-                with dev_col2:
-                    # Monthly Deviation
-                    fig_rainfall_dev_monthly = create_deviation_chart(
-                        monthly_rainfall[current_year], 
-                        monthly_rainfall[last_year],
-                        "Rainfall Deviation - Monthly (%)",
-                        "Deviation (%)"
-                    )
-                    st.plotly_chart(fig_rainfall_dev_monthly, use_container_width=True)
+                # Monthly Analysis
+                st.markdown("##### Monthly Analysis")
+                monthly_rainfall = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "Rainfall", "sum"
+                )
+                fig_rainfall_monthly = create_monthly_clustered_chart(
+                    monthly_rainfall[current_year], 
+                    monthly_rainfall[last_year],
+                    "Rainfall - Monthly Comparison with Deviation",
+                    "Rainfall (mm)"
+                )
+                st.plotly_chart(fig_rainfall_monthly, use_container_width=True)
 
                 # II. Rainy Days Analysis
                 st.subheader("II. Rainy Days Analysis")
                 
+                # Fortnightly Analysis
+                st.markdown("##### Fortnightly Analysis")
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -687,7 +745,7 @@ if generate:
                     fortnightly_rainy_days = calculate_fortnightly_metrics(
                         filtered_weather, current_year, last_year, "Rainfall", "count"
                     )
-                    fig_rainy_fortnight = create_weather_comparison_chart(
+                    fig_rainy_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rainy_days[current_year], 
                         fortnightly_rainy_days[last_year],
                         "Rainy Days - Fortnightly Comparison",
@@ -696,21 +754,33 @@ if generate:
                     st.plotly_chart(fig_rainy_fortnight, use_container_width=True)
                 
                 with col2:
-                    # Monthly Rainy Days
-                    monthly_rainy_days = calculate_monthly_metrics(
-                        filtered_weather, current_year, last_year, "Rainfall", "count"
+                    # Fortnightly Rainy Days Deviation
+                    fig_rainy_dev_fortnight = create_fortnightly_deviation_chart(
+                        fortnightly_rainy_days[current_year], 
+                        fortnightly_rainy_days[last_year],
+                        "Rainy Days Deviation - Fortnightly (%)",
+                        "Deviation (%)"
                     )
-                    fig_rainy_monthly = create_weather_comparison_chart(
-                        monthly_rainy_days[current_year], 
-                        monthly_rainy_days[last_year],
-                        "Rainy Days - Monthly Comparison",
-                        "Number of Rainy Days"
-                    )
-                    st.plotly_chart(fig_rainy_monthly, use_container_width=True)
-
-                # III. Maximum Temperature Analysis
-                st.subheader("III. Maximum Temperature Analysis")
+                    st.plotly_chart(fig_rainy_dev_fortnight, use_container_width=True)
                 
+                # Monthly Analysis
+                st.markdown("##### Monthly Analysis")
+                monthly_rainy_days = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "Rainfall", "count"
+                )
+                fig_rainy_monthly = create_monthly_clustered_chart(
+                    monthly_rainy_days[current_year], 
+                    monthly_rainy_days[last_year],
+                    "Rainy Days - Monthly Comparison with Deviation",
+                    "Number of Rainy Days"
+                )
+                st.plotly_chart(fig_rainy_monthly, use_container_width=True)
+
+                # III. Temperature Analysis
+                st.subheader("III. Temperature Analysis")
+                
+                # Maximum Temperature
+                st.markdown("##### Maximum Temperature")
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -718,7 +788,7 @@ if generate:
                     fortnightly_tmax = calculate_fortnightly_metrics(
                         filtered_weather, current_year, last_year, "Tmax", "mean"
                     )
-                    fig_tmax_fortnight = create_weather_comparison_chart(
+                    fig_tmax_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_tmax[current_year], 
                         fortnightly_tmax[last_year],
                         "Max Temperature - Fortnightly Average",
@@ -727,25 +797,8 @@ if generate:
                     st.plotly_chart(fig_tmax_fortnight, use_container_width=True)
                 
                 with col2:
-                    # Monthly Tmax
-                    monthly_tmax = calculate_monthly_metrics(
-                        filtered_weather, current_year, last_year, "Tmax", "mean"
-                    )
-                    fig_tmax_monthly = create_weather_comparison_chart(
-                        monthly_tmax[current_year], 
-                        monthly_tmax[last_year],
-                        "Max Temperature - Monthly Average",
-                        "Temperature (°C)"
-                    )
-                    st.plotly_chart(fig_tmax_monthly, use_container_width=True)
-                
-                # Tmax Deviation
-                st.subheader("Max Temperature Deviation")
-                dev_col1, dev_col2 = st.columns(2)
-                
-                with dev_col1:
                     # Fortnightly Tmax Deviation
-                    fig_tmax_dev_fortnight = create_deviation_chart(
+                    fig_tmax_dev_fortnight = create_fortnightly_deviation_chart(
                         fortnightly_tmax[current_year], 
                         fortnightly_tmax[last_year],
                         "Max Temperature Deviation - Fortnightly",
@@ -753,19 +806,20 @@ if generate:
                     )
                     st.plotly_chart(fig_tmax_dev_fortnight, use_container_width=True)
                 
-                with dev_col2:
-                    # Monthly Tmax Deviation
-                    fig_tmax_dev_monthly = create_deviation_chart(
-                        monthly_tmax[current_year], 
-                        monthly_tmax[last_year],
-                        "Max Temperature Deviation - Monthly",
-                        "Deviation (°C)"
-                    )
-                    st.plotly_chart(fig_tmax_dev_monthly, use_container_width=True)
+                # Monthly Tmax
+                monthly_tmax = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "Tmax", "mean"
+                )
+                fig_tmax_monthly = create_monthly_clustered_chart(
+                    monthly_tmax[current_year], 
+                    monthly_tmax[last_year],
+                    "Max Temperature - Monthly Average with Deviation",
+                    "Temperature (°C)"
+                )
+                st.plotly_chart(fig_tmax_monthly, use_container_width=True)
 
-                # IV. Minimum Temperature Analysis
-                st.subheader("IV. Minimum Temperature Analysis")
-                
+                # Minimum Temperature
+                st.markdown("##### Minimum Temperature")
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -773,7 +827,7 @@ if generate:
                     fortnightly_tmin = calculate_fortnightly_metrics(
                         filtered_weather, current_year, last_year, "Tmin", "mean"
                     )
-                    fig_tmin_fortnight = create_weather_comparison_chart(
+                    fig_tmin_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_tmin[current_year], 
                         fortnightly_tmin[last_year],
                         "Min Temperature - Fortnightly Average",
@@ -782,25 +836,8 @@ if generate:
                     st.plotly_chart(fig_tmin_fortnight, use_container_width=True)
                 
                 with col2:
-                    # Monthly Tmin
-                    monthly_tmin = calculate_monthly_metrics(
-                        filtered_weather, current_year, last_year, "Tmin", "mean"
-                    )
-                    fig_tmin_monthly = create_weather_comparison_chart(
-                        monthly_tmin[current_year], 
-                        monthly_tmin[last_year],
-                        "Min Temperature - Monthly Average",
-                        "Temperature (°C)"
-                    )
-                    st.plotly_chart(fig_tmin_monthly, use_container_width=True)
-                
-                # Tmin Deviation
-                st.subheader("Min Temperature Deviation")
-                dev_col1, dev_col2 = st.columns(2)
-                
-                with dev_col1:
                     # Fortnightly Tmin Deviation
-                    fig_tmin_dev_fortnight = create_deviation_chart(
+                    fig_tmin_dev_fortnight = create_fortnightly_deviation_chart(
                         fortnightly_tmin[current_year], 
                         fortnightly_tmin[last_year],
                         "Min Temperature Deviation - Fortnightly",
@@ -808,19 +845,23 @@ if generate:
                     )
                     st.plotly_chart(fig_tmin_dev_fortnight, use_container_width=True)
                 
-                with dev_col2:
-                    # Monthly Tmin Deviation
-                    fig_tmin_dev_monthly = create_deviation_chart(
-                        monthly_tmin[current_year], 
-                        monthly_tmin[last_year],
-                        "Min Temperature Deviation - Monthly",
-                        "Deviation (°C)"
-                    )
-                    st.plotly_chart(fig_tmin_dev_monthly, use_container_width=True)
+                # Monthly Tmin
+                monthly_tmin = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "Tmin", "mean"
+                )
+                fig_tmin_monthly = create_monthly_clustered_chart(
+                    monthly_tmin[current_year], 
+                    monthly_tmin[last_year],
+                    "Min Temperature - Monthly Average with Deviation",
+                    "Temperature (°C)"
+                )
+                st.plotly_chart(fig_tmin_monthly, use_container_width=True)
 
-                # V. Maximum Relative Humidity Analysis
-                st.subheader("V. Maximum Relative Humidity Analysis")
+                # IV. Relative Humidity Analysis
+                st.subheader("IV. Relative Humidity Analysis")
                 
+                # Maximum RH
+                st.markdown("##### Maximum Relative Humidity")
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -828,7 +869,7 @@ if generate:
                     fortnightly_rh_max = calculate_fortnightly_metrics(
                         filtered_weather, current_year, last_year, "max_Rh", "mean"
                     )
-                    fig_rh_max_fortnight = create_weather_comparison_chart(
+                    fig_rh_max_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rh_max[current_year], 
                         fortnightly_rh_max[last_year],
                         "Max RH - Fortnightly Average",
@@ -837,25 +878,8 @@ if generate:
                     st.plotly_chart(fig_rh_max_fortnight, use_container_width=True)
                 
                 with col2:
-                    # Monthly RH max
-                    monthly_rh_max = calculate_monthly_metrics(
-                        filtered_weather, current_year, last_year, "max_Rh", "mean"
-                    )
-                    fig_rh_max_monthly = create_weather_comparison_chart(
-                        monthly_rh_max[current_year], 
-                        monthly_rh_max[last_year],
-                        "Max RH - Monthly Average",
-                        "Relative Humidity (%)"
-                    )
-                    st.plotly_chart(fig_rh_max_monthly, use_container_width=True)
-                
-                # RH Max Deviation
-                st.subheader("Max RH Deviation")
-                dev_col1, dev_col2 = st.columns(2)
-                
-                with dev_col1:
                     # Fortnightly RH Max Deviation
-                    fig_rh_max_dev_fortnight = create_deviation_chart(
+                    fig_rh_max_dev_fortnight = create_fortnightly_deviation_chart(
                         fortnightly_rh_max[current_year], 
                         fortnightly_rh_max[last_year],
                         "Max RH Deviation - Fortnightly",
@@ -863,19 +887,20 @@ if generate:
                     )
                     st.plotly_chart(fig_rh_max_dev_fortnight, use_container_width=True)
                 
-                with dev_col2:
-                    # Monthly RH Max Deviation
-                    fig_rh_max_dev_monthly = create_deviation_chart(
-                        monthly_rh_max[current_year], 
-                        monthly_rh_max[last_year],
-                        "Max RH Deviation - Monthly",
-                        "Deviation (%)"
-                    )
-                    st.plotly_chart(fig_rh_max_dev_monthly, use_container_width=True)
+                # Monthly RH max
+                monthly_rh_max = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "max_Rh", "mean"
+                )
+                fig_rh_max_monthly = create_monthly_clustered_chart(
+                    monthly_rh_max[current_year], 
+                    monthly_rh_max[last_year],
+                    "Max RH - Monthly Average with Deviation",
+                    "Relative Humidity (%)"
+                )
+                st.plotly_chart(fig_rh_max_monthly, use_container_width=True)
 
-                # VI. Minimum Relative Humidity Analysis
-                st.subheader("VI. Minimum Relative Humidity Analysis")
-                
+                # Minimum RH
+                st.markdown("##### Minimum Relative Humidity")
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -883,7 +908,7 @@ if generate:
                     fortnightly_rh_min = calculate_fortnightly_metrics(
                         filtered_weather, current_year, last_year, "min_Rh", "mean"
                     )
-                    fig_rh_min_fortnight = create_weather_comparison_chart(
+                    fig_rh_min_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rh_min[current_year], 
                         fortnightly_rh_min[last_year],
                         "Min RH - Fortnightly Average",
@@ -892,25 +917,8 @@ if generate:
                     st.plotly_chart(fig_rh_min_fortnight, use_container_width=True)
                 
                 with col2:
-                    # Monthly RH min
-                    monthly_rh_min = calculate_monthly_metrics(
-                        filtered_weather, current_year, last_year, "min_Rh", "mean"
-                    )
-                    fig_rh_min_monthly = create_weather_comparison_chart(
-                        monthly_rh_min[current_year], 
-                        monthly_rh_min[last_year],
-                        "Min RH - Monthly Average",
-                        "Relative Humidity (%)"
-                    )
-                    st.plotly_chart(fig_rh_min_monthly, use_container_width=True)
-                
-                # RH Min Deviation
-                st.subheader("Min RH Deviation")
-                dev_col1, dev_col2 = st.columns(2)
-                
-                with dev_col1:
                     # Fortnightly RH Min Deviation
-                    fig_rh_min_dev_fortnight = create_deviation_chart(
+                    fig_rh_min_dev_fortnight = create_fortnightly_deviation_chart(
                         fortnightly_rh_min[current_year], 
                         fortnightly_rh_min[last_year],
                         "Min RH Deviation - Fortnightly",
@@ -918,15 +926,17 @@ if generate:
                     )
                     st.plotly_chart(fig_rh_min_dev_fortnight, use_container_width=True)
                 
-                with dev_col2:
-                    # Monthly RH Min Deviation
-                    fig_rh_min_dev_monthly = create_deviation_chart(
-                        monthly_rh_min[current_year], 
-                        monthly_rh_min[last_year],
-                        "Min RH Deviation - Monthly",
-                        "Deviation (%)"
-                    )
-                    st.plotly_chart(fig_rh_min_dev_monthly, use_container_width=True)
+                # Monthly RH min
+                monthly_rh_min = calculate_monthly_metrics(
+                    filtered_weather, current_year, last_year, "min_Rh", "mean"
+                )
+                fig_rh_min_monthly = create_monthly_clustered_chart(
+                    monthly_rh_min[current_year], 
+                    monthly_rh_min[last_year],
+                    "Min RH - Monthly Average with Deviation",
+                    "Relative Humidity (%)"
+                )
+                st.plotly_chart(fig_rh_min_monthly, use_container_width=True)
                 
             else:
                 st.info("No weather data available for the selected location and date range.")
@@ -1028,29 +1038,6 @@ if generate:
                     )
                 else:
                     st.write("No MAI data available")
-            
-            # Data Previews
-            st.subheader("Data Previews")
-            
-            preview_tabs = st.tabs(["Weather Data", "NDVI/NDWI Data", "MAI Data"])
-            
-            with preview_tabs[0]:
-                if not filtered_weather.empty:
-                    st.dataframe(filtered_weather.head(10), use_container_width=True)
-                else:
-                    st.info("No weather data available for preview")
-            
-            with preview_tabs[1]:
-                if not filtered_ndvi_ndwi.empty:
-                    st.dataframe(filtered_ndvi_ndwi.head(10), use_container_width=True)
-                else:
-                    st.info("No NDVI/NDWI data available for preview")
-            
-            with preview_tabs[2]:
-                if not filtered_mai.empty:
-                    st.dataframe(filtered_mai.head(10), use_container_width=True)
-                else:
-                    st.info("No MAI data available for preview")
 
 # -----------------------------
 # FOOTER
