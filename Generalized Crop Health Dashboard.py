@@ -114,7 +114,7 @@ st.markdown("""
 st.markdown("""
     <div class="main-header">
         <img src="https://raw.githubusercontent.com/ASHISHSE/App_test/main/icon.png" class="logo-icon" alt="Farmer Icon">
-        <div class="main-title">Smart Crop Advisory Dashboard</div>
+        <div class="main-title">SGeneralized Crop Dashboard</div>
         <div class="subtitle">Empowering Farmers with Data-Driven Insights</div>
     </div>
 """, unsafe_allow_html=True)
@@ -1058,4 +1058,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
