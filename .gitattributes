@@ -1,3 +1,4 @@
 *I:/ASHISH_Work/Develope_Crop_Advisory/App_Developement/App_Inputs/Final/New[[:space:]]Folder/Version_2/[200~weather_data_2023_24_upload~.xlsx filter=lfs diff=lfs merge=lfs -text
 *I:/ASHISH_Work/Develope_Crop_Advisory/App_Developement/App_Inputs/Final/New[[:space:]]Folder/Version_2/^[[200~weather_data_2023_24_upload~.xlsx filter=lfs diff=lfs merge=lfs -text
 *.xlsx filter=lfs diff=lfs merge=lfs -text
+*.exe filter=lfs diff=lfs merge=lfs -text
