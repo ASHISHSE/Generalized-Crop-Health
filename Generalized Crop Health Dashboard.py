@@ -11,7 +11,7 @@ from plotly.subplots import make_subplots
 
 # --- Page Config --- 
 st.set_page_config(
-    page_title="👨‍🌾 Smart Crop Advisory Dashboard",
+    page_title="👨‍🌾 Generalized Crop Dashboard",
     page_icon="👨‍🌾",
     layout="wide"
 )
@@ -1058,3 +1058,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
