@@ -343,9 +343,9 @@ def create_fortnightly_comparison_chart(current_year_data, last_year_data, title
     
     fig = go.Figure()
     
-    # UPDATED: Changed legend order and colors
+    # UPDATED: Changed legend order and colors - Blue shades for better differentiation
     fig.add_trace(go.Scatter(
-        name='2023',  # Changed order
+        name='2023',
         x=all_periods,
         y=last_values,
         mode='lines+markers',
@@ -354,11 +354,11 @@ def create_fortnightly_comparison_chart(current_year_data, last_year_data, title
     ))
     
     fig.add_trace(go.Scatter(
-        name='2024',  # Changed order
+        name='2024',
         x=all_periods,
         y=current_values,
         mode='lines+markers',
-        line=dict(color='#2d6a4f', width=3),  # Green color for 2024
+        line=dict(color='#3498db', width=3),  # Lighter blue for 2024
         marker=dict(size=8, symbol='circle')
     ))
     
@@ -401,22 +401,22 @@ def create_monthly_clustered_chart(current_year_data, last_year_data, title, yax
     # Create subplots
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
-    # UPDATED: Changed legend order and colors
+    # UPDATED: Changed legend order and colors - Blue shades
     fig.add_trace(go.Bar(
-        name='2023',  # Changed order
+        name='2023',
         x=all_months,
         y=last_values,
-        marker_color='#1f77b4',  # Blue color for 2023
+        marker_color='#1f77b4',  # Darker blue for 2023
         text=[f"{x:.2f}" for x in last_values],
         textposition='auto',
         textfont=dict(weight='bold')
     ), secondary_y=False)
     
     fig.add_trace(go.Bar(
-        name='2024',  # Changed order
+        name='2024',
         x=all_months,
         y=current_values,
-        marker_color='#2d6a4f',  # Green color for 2024
+        marker_color='#3498db',  # Lighter blue for 2024
         text=[f"{x:.2f}" for x in current_values],
         textposition='auto',
         textfont=dict(weight='bold')
@@ -535,7 +535,7 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
             y=df_2023["NDVI"],
             mode='lines+markers',
             name='2023',
-            line=dict(color='#FF6B00', width=3),  # Strong orange for 2023
+            line=dict(color='#1f77b4', width=3),  # Blue for 2023
             marker=dict(size=6)
         ))
     
@@ -545,9 +545,13 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
             y=df_2024["NDVI"],
             mode='lines+markers',
             name='2024',
-            line=dict(color='#2E00FF', width=3),  # Strong blue for 2024
+            line=dict(color='#3498db', width=3),  # Lighter blue for 2024
             marker=dict(size=6)
         ))
+    
+    # Determine level name for title
+    level_name = circle if circle else (taluka if taluka else district)
+    level = "Circle" if circle else ("Taluka" if taluka else "District")
     
     fig.update_layout(
         title=dict(text=f"NDVI Comparison: 2023 vs 2024 - {level}: {level_name}", x=0.5, xanchor='center'),
@@ -603,7 +607,7 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
             y=df_2023["NDWI"],
             mode='lines+markers',
             name='2023',
-            line=dict(color='#FF00FF', width=3),  # Strong magenta for 2023
+            line=dict(color='#1f77b4', width=3),  # Blue for 2023
             marker=dict(size=6)
         ))
     
@@ -613,9 +617,13 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
             y=df_2024["NDWI"],
             mode='lines+markers',
             name='2024',
-            line=dict(color='#00AA00', width=3),  # Strong green for 2024
+            line=dict(color='#3498db', width=3),  # Lighter blue for 2024
             marker=dict(size=6)
         ))
+    
+    # Determine level name for title
+    level_name = circle if circle else (taluka if taluka else district)
+    level = "Circle" if circle else ("Taluka" if taluka else "District")
     
     fig.update_layout(
         title=dict(text=f"NDWI Comparison: 2023 vs 2024 - {level}: {level_name}", x=0.5, xanchor='center'),
@@ -714,6 +722,10 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
     # Add zero reference line
     fig.add_hline(y=0, line_dash="dash", line_color="black", opacity=0.5)
     
+    # Determine level name for title
+    level_name = circle if circle else (taluka if taluka else district)
+    level = "Circle" if circle else ("Taluka" if taluka else "District")
+    
     fig.update_layout(
         title=dict(text=f"NDVI & NDWI Daily Deviation (2024 vs 2023) - {level}: {level_name}", x=0.5, xanchor='center'),
         xaxis_title="Date",
@@ -780,22 +792,22 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     # Create subplots
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
-    # UPDATED: Changed legend order and colors
+    # UPDATED: Changed legend order and colors - Blue shades
     fig.add_trace(go.Bar(
-        name='2023',  # Changed order
+        name='2023',
         x=months,
         y=values_2023,
-        marker_color='#1f77b4',  # Blue color for 2023
+        marker_color='#1f77b4',  # Darker blue for 2023
         text=[f"{x:.2f}%" for x in values_2023],
         textposition='auto',
         textfont=dict(weight='bold')
     ), secondary_y=False)
     
     fig.add_trace(go.Bar(
-        name='2024',  # Changed order
+        name='2024',
         x=months,
         y=values_2024,
-        marker_color='#2d6a4f',  # Green color for 2024
+        marker_color='#3498db',  # Lighter blue for 2024
         text=[f"{x:.2f}%" for x in values_2024],
         textposition='auto',
         textfont=dict(weight='bold')
@@ -813,6 +825,10 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
         textposition="top center",
         textfont=dict(color='#d63031', size=10, weight='bold')
     ), secondary_y=True)
+    
+    # Determine level name for title
+    level_name = circle if circle else (taluka if taluka else district)
+    level = "Circle" if circle else ("Taluka" if taluka else "District")
     
     fig.update_layout(
         title=dict(text=f"MAI Monthly Comparison: 2023 vs 2024 with Deviation - {level}: {level_name}", x=0.5, xanchor='center'),
@@ -835,6 +851,13 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
 def download_chart_as_image(fig, filename):
     """Download Plotly chart as PNG image - FIXED version"""
     try:
+        # Check if kaleido is available, if not provide installation instructions
+        try:
+            import kaleido
+        except ImportError:
+            st.warning(f"Kaleido package not found. Please install it using: pip install kaleido")
+            return
+            
         img_bytes = fig.to_image(format="png", width=1200, height=600)
         st.download_button(
             label=f"📥 Download {filename} as PNG",
@@ -1256,46 +1279,13 @@ if generate:
             else:
                 st.info("No MAI data available for the selected parameters.")
 
-        # TAB 3: DOWNLOAD DATA (FIXED)
+        # TAB 3: DOWNLOAD DATA (FIXED - Removed download charts section)
         with tab3:
             st.header(f"💾 Download Data - {level}: {level_name}")
             
-            # Download Charts Section - FIXED
-            st.subheader("Download Charts")
+            # REMOVED: Download Charts Section as requested
             
-            # Weather Charts
-            st.markdown("##### Weather Metrics Charts")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if 'fig_rainfall_fortnight' in locals():
-                    download_chart_as_image(fig_rainfall_fortnight, "Rainfall_Fortnightly_Comparison")
-                if 'fig_rainfall_monthly' in locals():
-                    download_chart_as_image(fig_rainfall_monthly, "Rainfall_Monthly_Comparison")
-            
-            with col2:
-                if 'fig_tmax_fortnight' in locals():
-                    download_chart_as_image(fig_tmax_fortnight, "Max_Temperature_Fortnightly")
-                if 'fig_tmin_fortnight' in locals():
-                    download_chart_as_image(fig_tmin_fortnight, "Min_Temperature_Fortnightly")
-            
-            # Remote Sensing Charts
-            st.markdown("##### Remote Sensing Charts")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if 'ndvi_comparison_fig' in locals() and ndvi_comparison_fig:
-                    download_chart_as_image(ndvi_comparison_fig, "NDVI_Comparison_Chart")
-                if 'ndwi_comparison_fig' in locals() and ndwi_comparison_fig:
-                    download_chart_as_image(ndwi_comparison_fig, "NDWI_Comparison_Chart")
-            
-            with col2:
-                if 'ndvi_ndwi_dev_fig' in locals() and ndvi_ndwi_dev_fig:
-                    download_chart_as_image(ndvi_ndwi_dev_fig, "NDVI_NDWI_Deviation_Chart")
-                if 'mai_monthly_fig' in locals() and mai_monthly_fig:
-                    download_chart_as_image(mai_monthly_fig, "MAI_Monthly_Chart")
-            
-            # Download Data Section
+            # Download Data Section only
             st.subheader("Download Data Tables")
             
             col1, col2, col3 = st.columns(3)
