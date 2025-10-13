@@ -296,12 +296,18 @@ def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, 
     """Calculate fortnightly metrics for current and last year - UPDATED to use same month dates"""
     metrics = {}
     
+    # Convert start_date and end_date to datetime if they are date objects
+    if start_date and not isinstance(start_date, pd.Timestamp):
+        start_date = pd.to_datetime(start_date)
+    if end_date and not isinstance(end_date, pd.Timestamp):
+        end_date = pd.to_datetime(end_date)
+    
     # For current year (2024) - use selected date range
     current_year_data = data_df[data_df['Date_dt'].dt.year == current_year].copy()
     if start_date and end_date:
         current_year_data = current_year_data[
-            (current_year_data['Date_dt'] >= pd.to_datetime(start_date)) & 
-            (current_year_data['Date_dt'] <= pd.to_datetime(end_date))
+            (current_year_data['Date_dt'] >= start_date) & 
+            (current_year_data['Date_dt'] <= end_date)
         ]
     
     current_year_data['Fortnight'] = current_year_data['Date_dt'].apply(get_fortnight)
@@ -312,12 +318,17 @@ def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, 
         # Create 2023 dates with same month range
         start_month = start_date.month
         end_month = end_date.month
-        last_year_start = date(last_year, start_month, 1)
-        last_year_end = date(last_year, end_month, 28)  # Use 28th to ensure valid date
+        last_year_start = pd.to_datetime(f"{last_year}-{start_month:02d}-01")
+        
+        # Get last day of end month for 2023
+        if end_month == 12:
+            last_year_end = pd.to_datetime(f"{last_year}-12-31")
+        else:
+            last_year_end = pd.to_datetime(f"{last_year}-{end_month+1:02d}-01") - pd.Timedelta(days=1)
         
         last_year_data = last_year_data[
-            (last_year_data['Date_dt'] >= pd.to_datetime(last_year_start)) & 
-            (last_year_data['Date_dt'] <= pd.to_datetime(last_year_end))
+            (last_year_data['Date_dt'] >= last_year_start) & 
+            (last_year_data['Date_dt'] <= last_year_end)
         ]
     
     last_year_data['Fortnight'] = last_year_data['Date_dt'].apply(get_fortnight)
@@ -346,12 +357,18 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
     """Calculate monthly metrics for current and last year - UPDATED to use same month dates"""
     metrics = {}
     
+    # Convert start_date and end_date to datetime if they are date objects
+    if start_date and not isinstance(start_date, pd.Timestamp):
+        start_date = pd.to_datetime(start_date)
+    if end_date and not isinstance(end_date, pd.Timestamp):
+        end_date = pd.to_datetime(end_date)
+    
     # For current year (2024) - use selected date range
     current_year_data = data_df[data_df['Date_dt'].dt.year == current_year].copy()
     if start_date and end_date:
         current_year_data = current_year_data[
-            (current_year_data['Date_dt'] >= pd.to_datetime(start_date)) & 
-            (current_year_data['Date_dt'] <= pd.to_datetime(end_date))
+            (current_year_data['Date_dt'] >= start_date) & 
+            (current_year_data['Date_dt'] <= end_date)
         ]
     
     current_year_data['Month'] = current_year_data['Date_dt'].dt.strftime('%B')
@@ -362,12 +379,17 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
         # Create 2023 dates with same month range
         start_month = start_date.month
         end_month = end_date.month
-        last_year_start = date(last_year, start_month, 1)
-        last_year_end = date(last_year, end_month, 28)  # Use 28th to ensure valid date
+        last_year_start = pd.to_datetime(f"{last_year}-{start_month:02d}-01")
+        
+        # Get last day of end month for 2023
+        if end_month == 12:
+            last_year_end = pd.to_datetime(f"{last_year}-12-31")
+        else:
+            last_year_end = pd.to_datetime(f"{last_year}-{end_month+1:02d}-01") - pd.Timedelta(days=1)
         
         last_year_data = last_year_data[
-            (last_year_data['Date_dt'] >= pd.to_datetime(last_year_start)) & 
-            (last_year_data['Date_dt'] <= pd.to_datetime(last_year_end))
+            (last_year_data['Date_dt'] >= last_year_start) & 
+            (last_year_data['Date_dt'] <= last_year_end)
         ]
     
     last_year_data['Month'] = last_year_data['Date_dt'].dt.strftime('%B')
@@ -572,6 +594,12 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
     
+    # Convert start_date and end_date to datetime if they are date objects
+    if start_date and not isinstance(start_date, pd.Timestamp):
+        start_date = pd.to_datetime(start_date)
+    if end_date and not isinstance(end_date, pd.Timestamp):
+        end_date = pd.to_datetime(end_date)
+    
     # Filter for both years and date range
     filtered_df = filtered_df[
         (filtered_df["Date_dt"].dt.year.isin([2023, 2024])) &
@@ -582,6 +610,7 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
     if filtered_df.empty:
         return None
     
+    # Rest of the function remains the same...
     # Create line chart with Date-Month format (ignoring year)
     fig = go.Figure()
     
@@ -610,7 +639,7 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
         ))
     
     if not df_2024.empty:
-        df_2024_avg = df_2024.groupby('Date_Month')['NDVI'].mean().reset_index()
+        df_2024_avg = df_2024.groupby('Date_Month')['NDWI'].mean().reset_index()
         # Sort by day-month for proper line connection
         df_2024_avg['Day'] = pd.to_datetime(df_2024_avg['Date_Month'], format='%d-%m').dt.day
         df_2024_avg['Month'] = pd.to_datetime(df_2024_avg['Date_Month'], format='%d-%m').dt.month
@@ -1488,6 +1517,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
