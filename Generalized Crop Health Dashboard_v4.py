@@ -953,7 +953,7 @@ st.markdown(
 )
 
 # --- Date Selection Section ---
-st.markdown("### 📅 Date Selection")
+#st.markdown("### 📅 Date Selection")
 
 # MODIFIED LAYOUT: Taluka on top, Circle below
 col1, col2 = st.columns(2)
@@ -1397,3 +1397,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
