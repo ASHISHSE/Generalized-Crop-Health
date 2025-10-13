@@ -497,248 +497,151 @@ def create_fortnightly_deviation_chart(current_year_data, last_year_data, title,
     return fig
 
 def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, end_date):
-    """Create NDVI comparison chart between 2023 and 2024 with dates instead of months"""
+    """Create smooth NDVI comparison chart (2023 vs 2024) with averaged Date-Month (DD-MM) axis"""
     filtered_df = ndvi_df.copy()
-    
+
+    # Apply filters
     if district:
         filtered_df = filtered_df[filtered_df["District"] == district]
     if taluka:
         filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
-    
-    # Filter for selected date range
+
+    # Keep only 2023 and 2024 data
+    filtered_df = filtered_df[filtered_df["Date_dt"].dt.year.isin([2023, 2024])]
+
+    # Filter between start and end date (by actual datetime)
     filtered_df = filtered_df[
-        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
-        (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
-        (filtered_df["Date_dt"].dt.year.isin([2023, 2024]))
+        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) &
+        (filtered_df["Date_dt"] <= pd.to_datetime(end_date))
     ]
-    
+
     if filtered_df.empty:
         return None
-    
-    # Create line chart with actual dates
+
+    # Extract Date-Month (ignore year)
+    filtered_df["Date_Month"] = filtered_df["Date_dt"].dt.strftime("%d-%m")
+
     fig = go.Figure()
-    
-    # Separate data for 2023 and 2024
-    df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
-    df_2024 = filtered_df[filtered_df["Date_dt"].dt.year == 2024].copy()
-    
-    # Sort by date
-    df_2023 = df_2023.sort_values("Date_dt")
-    df_2024 = df_2024.sort_values("Date_dt")
-    
-    # Add traces for each year
-    if not df_2023.empty:
-        fig.add_trace(go.Scatter(
-            x=df_2023["Date_dt"],
-            y=df_2023["NDVI"],
-            mode='lines+markers',
-            name='2023',
-            line=dict(color='#1f77b4', width=3),  # Blue for 2023
-            marker=dict(size=6)
-        ))
-    
-    if not df_2024.empty:
-        fig.add_trace(go.Scatter(
-            x=df_2024["Date_dt"],
-            y=df_2024["NDVI"],
-            mode='lines+markers',
-            name='2024',
-            line=dict(color='#3498db', width=3),  # Lighter blue for 2024
-            marker=dict(size=6)
-        ))
-    
-    # Determine level name for title
-    level_name = circle if circle else (taluka if taluka else district)
-    level = "Circle" if circle else ("Taluka" if taluka else "District")
-    
-    fig.update_layout(
-        title=dict(text=f"NDVI Comparison: 2023 vs 2024 - {level}: {level_name}", x=0.5, xanchor='center'),
-        xaxis_title="Date",
-        yaxis_title="NDVI",
-        template='plotly_white',
-        height=400,
-        hovermode='x unified',
-        xaxis=dict(
-            tickformat='%d-%m-%Y',
-            tickangle=45
+
+    # Loop for both years to avoid code repetition
+    colors = {2023: "#87CEEB", 2024: "#1E3F66"}  # same color scheme
+    for year in [2023, 2024]:
+        df_year = filtered_df[filtered_df["Date_dt"].dt.year == year].copy()
+        if df_year.empty:
+            continue
+
+        # Average NDVI by Date-Month
+        df_avg = (
+            df_year.groupby("Date_Month")["NDVI"]
+            .mean()
+            .reset_index()
         )
+
+        # Sort by month and day for continuous lines
+        df_avg["Day"] = pd.to_datetime(df_avg["Date_Month"], format="%d-%m").dt.day
+        df_avg["Month"] = pd.to_datetime(df_avg["Date_Month"], format="%d-%m").dt.month
+        df_avg = df_avg.sort_values(["Month", "Day"])
+
+        # Smooth line chart
+        fig.add_trace(go.Scatter(
+            x=df_avg["Date_Month"],
+            y=df_avg["NDVI"],
+            mode='lines',  # Smooth line, no markers
+            name=str(year),
+            line=dict(color=colors[year], width=3),
+            hovertemplate=f"<b>{year}</b><br>Date: %{x}<br>NDVI: %{y:.3f}<extra></extra>"
+        ))
+
+    # Title naming
+    level_name = circle or taluka or district
+    level = "Circle" if circle else ("Taluka" if taluka else "District")
+
+    fig.update_layout(
+        title=dict(text=f"NDVI Comparison (2023 vs 2024) - {level}: {level_name}", x=0.5),
+        xaxis_title="Date (DD-MM)",
+        yaxis_title="NDVI",
+        template="plotly_white",
+        height=400,
+        hovermode="x unified",
+        xaxis=dict(tickangle=45),
+        yaxis=dict(range=[0, 1])
     )
-    
     return fig
+
 
 def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, end_date):
-    """Create NDWI comparison chart between 2023 and 2024 with dates instead of months"""
+    """Create smooth NDWI comparison chart (2023 vs 2024) with averaged Date-Month (DD-MM) axis"""
     filtered_df = ndwi_df.copy()
-    
+
+    # Apply filters
     if district:
         filtered_df = filtered_df[filtered_df["District"] == district]
     if taluka:
         filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
-    
-    # Filter for selected date range
+
+    # Keep only 2023 and 2024 data
+    filtered_df = filtered_df[filtered_df["Date_dt"].dt.year.isin([2023, 2024])]
+
+    # Filter between start and end date (by actual datetime)
     filtered_df = filtered_df[
-        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
-        (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
-        (filtered_df["Date_dt"].dt.year.isin([2023, 2024]))
+        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) &
+        (filtered_df["Date_dt"] <= pd.to_datetime(end_date))
     ]
-    
+
     if filtered_df.empty:
         return None
-    
-    # Create line chart with actual dates
+
+    # Extract Date-Month (ignore year)
+    filtered_df["Date_Month"] = filtered_df["Date_dt"].dt.strftime("%d-%m")
+
     fig = go.Figure()
-    
-    # Separate data for 2023 and 2024
-    df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
-    df_2024 = filtered_df[filtered_df["Date_dt"].dt.year == 2024].copy()
-    
-    # Sort by date
-    df_2023 = df_2023.sort_values("Date_dt")
-    df_2024 = df_2024.sort_values("Date_dt")
-    
-    # Add traces for each year
-    if not df_2023.empty:
-        fig.add_trace(go.Scatter(
-            x=df_2023["Date_dt"],
-            y=df_2023["NDWI"],
-            mode='lines+markers',
-            name='2023',
-            line=dict(color='#1f77b4', width=3),  # Blue for 2023
-            marker=dict(size=6)
-        ))
-    
-    if not df_2024.empty:
-        fig.add_trace(go.Scatter(
-            x=df_2024["Date_dt"],
-            y=df_2024["NDWI"],
-            mode='lines+markers',
-            name='2024',
-            line=dict(color='#3498db', width=3),  # Lighter blue for 2024
-            marker=dict(size=6)
-        ))
-    
-    # Determine level name for title
-    level_name = circle if circle else (taluka if taluka else district)
-    level = "Circle" if circle else ("Taluka" if taluka else "District")
-    
-    fig.update_layout(
-        title=dict(text=f"NDWI Comparison: 2023 vs 2024 - {level}: {level_name}", x=0.5, xanchor='center'),
-        xaxis_title="Date",
-        yaxis_title="NDWI",
-        template='plotly_white',
-        height=400,
-        hovermode='x unified',
-        xaxis=dict(
-            tickformat='%d-%m-%Y',
-            tickangle=45
+
+    colors = {2023: "#87CEEB", 2024: "#1E3F66"}  # same color scheme
+    for year in [2023, 2024]:
+        df_year = filtered_df[filtered_df["Date_dt"].dt.year == year].copy()
+        if df_year.empty:
+            continue
+
+        # Average NDWI by Date-Month
+        df_avg = (
+            df_year.groupby("Date_Month")["NDWI"]
+            .mean()
+            .reset_index()
         )
+
+        # Sort by month and day
+        df_avg["Day"] = pd.to_datetime(df_avg["Date_Month"], format="%d-%m").dt.day
+        df_avg["Month"] = pd.to_datetime(df_avg["Date_Month"], format="%d-%m").dt.month
+        df_avg = df_avg.sort_values(["Month", "Day"])
+
+        fig.add_trace(go.Scatter(
+            x=df_avg["Date_Month"],
+            y=df_avg["NDWI"],
+            mode='lines',
+            name=str(year),
+            line=dict(color=colors[year], width=3),
+            hovertemplate=f"<b>{year}</b><br>Date: %{x}<br>NDWI: %{y:.3f}<extra></extra>"
+        ))
+
+    level_name = circle or taluka or district
+    level = "Circle" if circle else ("Taluka" if taluka else "District")
+
+    fig.update_layout(
+        title=dict(text=f"NDWI Comparison (2023 vs 2024) - {level}: {level_name}", x=0.5),
+        xaxis_title="Date (DD-MM)",
+        yaxis_title="NDWI",
+        template="plotly_white",
+        height=400,
+        hovermode="x unified",
+        xaxis=dict(tickangle=45),
+        yaxis=dict(range=[-1, 1])
     )
-    
     return fig
 
-def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, start_date, end_date):
-    """Create deviation chart for NDVI and NDWI using dates"""
-    filtered_df = ndvi_ndwi_df.copy()
-    
-    if district:
-        filtered_df = filtered_df[filtered_df["District"] == district]
-    if taluka:
-        filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
-    if circle:
-        filtered_df = filtered_df[filtered_df["Circle"] == circle]
-    
-    # Filter for selected date range
-    filtered_df = filtered_df[
-        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
-        (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
-        (filtered_df["Date_dt"].dt.year.isin([2023, 2024]))
-    ]
-    
-    if filtered_df.empty:
-        return None
-    
-    # Calculate daily averages and deviations
-    filtered_df['Year'] = filtered_df['Date_dt'].dt.year
-    
-    # Get common dates between years
-    common_dates = []
-    for date_val in filtered_df['Date_dt'].unique():
-        date_2023 = filtered_df[(filtered_df['Date_dt'] == date_val) & (filtered_df['Year'] == 2023)]
-        date_2024 = filtered_df[(filtered_df['Date_dt'] == date_val) & (filtered_df['Year'] == 2024)]
-        
-        if not date_2023.empty and not date_2024.empty:
-            ndvi_2023 = date_2023['NDVI'].iloc[0]
-            ndvi_2024 = date_2024['NDVI'].iloc[0]
-            ndwi_2023 = date_2023['NDWI'].iloc[0]
-            ndwi_2024 = date_2024['NDWI'].iloc[0]
-            
-            if ndvi_2023 != 0:
-                ndvi_dev = ((ndvi_2024 - ndvi_2023) / ndvi_2023) * 100
-            else:
-                ndvi_dev = 0
-                
-            if ndwi_2023 != 0:
-                ndwi_dev = ((ndwi_2024 - ndwi_2023) / ndwi_2023) * 100
-            else:
-                ndwi_dev = 0
-                
-            common_dates.append({
-                'Date': date_val,
-                'NDVI_Deviation': round(ndvi_dev, 2),
-                'NDWI_Deviation': round(ndwi_dev, 2)
-            })
-    
-    if not common_dates:
-        return None
-        
-    dev_df = pd.DataFrame(common_dates)
-    dev_df = dev_df.sort_values('Date')
-    
-    # Create deviation chart with dates
-    fig = go.Figure()
-    
-    fig.add_trace(go.Scatter(
-        name='NDVI Deviation (%)',
-        x=dev_df['Date'],
-        y=dev_df['NDVI_Deviation'],
-        mode='lines+markers',
-        line=dict(color='#27ae60', width=3),
-        marker=dict(size=6)
-    ))
-    
-    fig.add_trace(go.Scatter(
-        name='NDWI Deviation (%)',
-        x=dev_df['Date'],
-        y=dev_df['NDWI_Deviation'],
-        mode='lines+markers',
-        line=dict(color='#3498db', width=3),
-        marker=dict(size=6)
-    ))
-    
-    # Add zero reference line
-    fig.add_hline(y=0, line_dash="dash", line_color="black", opacity=0.5)
-    
-    # Determine level name for title
-    level_name = circle if circle else (taluka if taluka else district)
-    level = "Circle" if circle else ("Taluka" if taluka else "District")
-    
-    fig.update_layout(
-        title=dict(text=f"NDVI & NDWI Daily Deviation (2024 vs 2023) - {level}: {level_name}", x=0.5, xanchor='center'),
-        xaxis_title="Date",
-        yaxis_title="Deviation (%)",
-        template='plotly_white',
-        height=400,
-        xaxis=dict(
-            tickformat='%d-%m-%Y',
-            tickangle=45
-        )
-    )
-    
-    return fig
 
 def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     """Create monthly MAI comparison chart for 2023 vs 2024 with deviation"""
@@ -1346,4 +1249,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
