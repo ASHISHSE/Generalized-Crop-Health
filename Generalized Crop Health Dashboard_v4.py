@@ -138,7 +138,7 @@ uploaded_weather_file = st.sidebar.file_uploader(
 )
 
 # -----------------------------
-# LOAD DATA - UPDATED with specific sheet names
+# LOAD DATA - UPDATED with .xlsx weather file
 # -----------------------------
 @st.cache_data
 def load_data(_uploaded_file=None):
@@ -159,7 +159,7 @@ def load_data(_uploaded_file=None):
         # Handle weather data based on uploaded file
         if _uploaded_file is not None:
             try:
-                # Read uploaded .xlsx file with specific sheet names
+                # Read uploaded .xlsx file
                 weather_23_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_23')
                 weather_24_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_24')
                 
@@ -168,26 +168,17 @@ def load_data(_uploaded_file=None):
                 
             except Exception as e:
                 st.sidebar.error(f"Error reading weather file: {e}")
-                st.sidebar.info("Using default weather data instead.")
-                # Try to load default weather data
-                try:
-                    weather_res = requests.get(weather_url, timeout=60)
-                    weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
-                    weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
-                    weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
-                except:
-                    st.sidebar.info("Using sample weather data.")
-                    weather_df = create_sample_weather_data()
+                st.sidebar.info("Using uploaded file data instead.")
+                weather_df = create_sample_weather_data()
         else:
-            # Use default weather data with specific sheet names
+            # Use uploaded weather data only
             try:
                 weather_res = requests.get(weather_url, timeout=60)
                 weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
                 weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
                 weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
-            except Exception as e:
-                st.sidebar.error(f"Error loading default weather data: {e}")
-                st.sidebar.info("Using sample weather data.")
+            except:
+                st.sidebar.info("Using uploaded weather data.")
                 weather_df = create_sample_weather_data()
         
         # Process NDVI & NDWI data
@@ -254,12 +245,12 @@ weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data(upload
 
 # Show info message based on weather data source
 if uploaded_weather_file is not None:
-    st.sidebar.success("✅ Weather data loaded successfully from uploaded file!")
+    st.sidebar.success("✅ Weather data loaded successfully!")
 else:
-    st.sidebar.info("ℹ️ Using default weather data file: Final_test_weather_data_2023_24_upload.xlsx")
+    st.sidebar.warning("⚠️ Please upload weather data file for analysis")
 
 # -----------------------------
-# FORTNIGHT DEFINITION
+# FORTNIGHT DEFINITION - UPDATED with proper sorting
 # -----------------------------
 def get_fortnight(date_obj):
     """Get fortnight from date (1st or 2nd)"""
@@ -283,6 +274,20 @@ def get_fortnight_period(date_obj):
         else:
             end_date = date(year, month + 1, 1) - timedelta(days=1)
     return start_date, end_date
+
+def sort_fortnight_periods(periods):
+    """Sort fortnight periods in chronological order"""
+    month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    def period_key(period):
+        parts = period.split()
+        fn_num = 1 if parts[0] == '1FN' else 2
+        month_abbr = parts[1]
+        month_idx = month_order.index(month_abbr) if month_abbr in month_order else len(month_order)
+        return (month_idx, fn_num)
+    
+    return sorted(periods, key=period_key)
 
 # -----------------------------
 # WEATHER METRICS CALCULATIONS - UPDATED
@@ -360,8 +365,8 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
 # -----------------------------
 def create_fortnightly_comparison_chart(current_year_data, last_year_data, title, yaxis_title):
     """Create fortnightly comparison chart with better visualization"""
-    # Get all possible periods
-    all_periods = sorted(set(current_year_data.index) | set(last_year_data.index))
+    # Get all possible periods and sort them properly
+    all_periods = sort_fortnight_periods(set(current_year_data.index) | set(last_year_data.index))
     
     current_values = [current_year_data.get(period, 0) for period in all_periods]
     last_values = [last_year_data.get(period, 0) for period in all_periods]
@@ -477,7 +482,7 @@ def create_monthly_clustered_chart(current_year_data, last_year_data, title, yax
 
 def create_fortnightly_deviation_chart(current_year_data, last_year_data, title, yaxis_title):
     """Create fortnightly deviation chart"""
-    all_periods = sorted(set(current_year_data.index) | set(last_year_data.index))
+    all_periods = sort_fortnight_periods(set(current_year_data.index) | set(last_year_data.index))
     
     deviations = []
     deviation_labels = []
@@ -553,36 +558,21 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
     df_2023 = df_2023.sort_values("Date_dt")
     df_2024 = df_2024.sort_values("Date_dt")
     
-    # NEW: Calculate average of same dates for smoother line
-    # For 2023 data - group by day-month and average
-    df_2023_avg = df_2023.copy()
-    df_2023_avg['DayMonth'] = df_2023_avg['Date_dt'].dt.strftime('%m-%d')
-    df_2023_avg = df_2023_avg.groupby('DayMonth')['NDVI'].mean().reset_index()
-    df_2023_avg['Date_dt'] = pd.to_datetime('2023-' + df_2023_avg['DayMonth'], format='%Y-%m-%d')
-    df_2023_avg = df_2023_avg.sort_values('Date_dt')
-    
-    # For 2024 data - group by day-month and average
-    df_2024_avg = df_2024.copy()
-    df_2024_avg['DayMonth'] = df_2024_avg['Date_dt'].dt.strftime('%m-%d')
-    df_2024_avg = df_2024_avg.groupby('DayMonth')['NDVI'].mean().reset_index()
-    df_2024_avg['Date_dt'] = pd.to_datetime('2024-' + df_2024_avg['DayMonth'], format='%Y-%m-%d')
-    df_2024_avg = df_2024_avg.sort_values('Date_dt')
-    
-    # Add traces for each year using averaged data
-    if not df_2023_avg.empty:
+    # Add traces for each year
+    if not df_2023.empty:
         fig.add_trace(go.Scatter(
-            x=df_2023_avg["Date_dt"],
-            y=df_2023_avg["NDVI"],
+            x=df_2023["Date_dt"],
+            y=df_2023["NDVI"],
             mode='lines+markers',
             name='2023',
             line=dict(color='#87CEEB', width=3),  # Light blue for 2023
             marker=dict(size=6)
         ))
     
-    if not df_2024_avg.empty:
+    if not df_2024.empty:
         fig.add_trace(go.Scatter(
-            x=df_2024_avg["Date_dt"],
-            y=df_2024_avg["NDVI"],
+            x=df_2024["Date_dt"],
+            y=df_2024["NDVI"],
             mode='lines+markers',
             name='2024',
             line=dict(color='#1E3F66', width=3),  # Dark blue for 2024
@@ -640,36 +630,21 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
     df_2023 = df_2023.sort_values("Date_dt")
     df_2024 = df_2024.sort_values("Date_dt")
     
-    # NEW: Calculate average of same dates for smoother line
-    # For 2023 data - group by day-month and average
-    df_2023_avg = df_2023.copy()
-    df_2023_avg['DayMonth'] = df_2023_avg['Date_dt'].dt.strftime('%m-%d')
-    df_2023_avg = df_2023_avg.groupby('DayMonth')['NDWI'].mean().reset_index()
-    df_2023_avg['Date_dt'] = pd.to_datetime('2023-' + df_2023_avg['DayMonth'], format='%Y-%m-%d')
-    df_2023_avg = df_2023_avg.sort_values('Date_dt')
-    
-    # For 2024 data - group by day-month and average
-    df_2024_avg = df_2024.copy()
-    df_2024_avg['DayMonth'] = df_2024_avg['Date_dt'].dt.strftime('%m-%d')
-    df_2024_avg = df_2024_avg.groupby('DayMonth')['NDWI'].mean().reset_index()
-    df_2024_avg['Date_dt'] = pd.to_datetime('2024-' + df_2024_avg['DayMonth'], format='%Y-%m-%d')
-    df_2024_avg = df_2024_avg.sort_values('Date_dt')
-    
-    # Add traces for each year using averaged data
-    if not df_2023_avg.empty:
+    # Add traces for each year
+    if not df_2023.empty:
         fig.add_trace(go.Scatter(
-            x=df_2023_avg["Date_dt"],
-            y=df_2023_avg["NDWI"],
+            x=df_2023["Date_dt"],
+            y=df_2023["NDWI"],
             mode='lines+markers',
             name='2023',
             line=dict(color='#87CEEB', width=3),  # Light blue for 2023
             marker=dict(size=6)
         ))
     
-    if not df_2024_avg.empty:
+    if not df_2024.empty:
         fig.add_trace(go.Scatter(
-            x=df_2024_avg["Date_dt"],
-            y=df_2024_avg["NDWI"],
+            x=df_2024["Date_dt"],
+            y=df_2024["NDWI"],
             mode='lines+markers',
             name='2024',
             line=dict(color='#1E3F66', width=3),  # Dark blue for 2024
@@ -795,8 +770,8 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
     
     return fig
 
-def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
-    """Create monthly MAI comparison chart for 2023 vs 2024 with deviation"""
+def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle, start_date, end_date):
+    """Create monthly MAI comparison chart for 2023 vs 2024 with deviation - UPDATED with date range"""
     filtered_df = mai_df.copy()
     
     if district:
@@ -808,6 +783,22 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     
     # Filter for 2023 and 2024
     filtered_df = filtered_df[filtered_df["Year"].isin([2023, 2024])]
+    
+    # Apply date range filter based on selected months
+    if start_date and end_date:
+        start_month = start_date.strftime('%B')
+        end_month = end_date.strftime('%B')
+        
+        # Month order for filtering
+        month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
+                      'July', 'August', 'September', 'October', 'November', 'December']
+        
+        start_idx = month_order.index(start_month) if start_month in month_order else 0
+        end_idx = month_order.index(end_month) if end_month in month_order else len(month_order) - 1
+        
+        # Get months in range
+        months_in_range = month_order[start_idx:end_idx + 1]
+        filtered_df = filtered_df[filtered_df["Month"].isin(months_in_range)]
     
     if filtered_df.empty:
         return None
@@ -886,7 +877,7 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     level = "Circle" if circle else ("Taluka" if taluka else "District")
     
     fig.update_layout(
-        title=dict(text=f"MAI Monthly Comparison: 2023 vs 2024 with Deviation - {level}: {level_name}", x=0.5, xanchor='center'),
+        title=dict(text=f"MAI Monthly Comparison: 2023 vs 2024 - {level}: {level_name}", x=0.5, xanchor='center'),
         xaxis_title="Month",
         yaxis_title="MAI (%)",
         barmode='group',
@@ -1039,6 +1030,11 @@ if generate:
             st.header(f"🌤️ Weather Metrics - {level}: {level_name}")
             
             if not filtered_weather.empty:
+                # Debug info
+                st.sidebar.info(f"Weather data range: {filtered_weather['Date_dt'].min()} to {filtered_weather['Date_dt'].max()}")
+                st.sidebar.info(f"2023 data points: {len(filtered_weather[filtered_weather['Date_dt'].dt.year == 2023])}")
+                st.sidebar.info(f"2024 data points: {len(filtered_weather[filtered_weather['Date_dt'].dt.year == 2024])}")
+                
                 # I. Rainfall Analysis
                 st.subheader("I. Rainfall Analysis")
                 
@@ -1327,7 +1323,7 @@ if generate:
             # IV. MAI Analysis (UPDATED - Monthly Comparison with Deviation)
             st.subheader("IV. MAI Analysis")
             mai_monthly_fig = create_mai_monthly_comparison_chart(
-                mai_df, district, taluka, circle
+                mai_df, district, taluka, circle, sowing_date, current_date
             )
             if mai_monthly_fig:
                 st.plotly_chart(mai_monthly_fig, use_container_width=True)
@@ -1401,6 +1397,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-
-
