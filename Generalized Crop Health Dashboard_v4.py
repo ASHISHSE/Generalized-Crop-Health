@@ -805,7 +805,7 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     
     # Group by Year and Month
     monthly_mai = filtered_df.groupby(['Year', 'Month'])['MAI (%)'].mean().reset_index()
-    monthly_mai['MAI (%)'] = monthly_mai['MAI (%)'].round(2)
+    monthly_mai['MAI (%)'] = monthly_mai['MAI (%)']#.round(2)
     
     # Pivot to get 2023 and 2024 columns
     pivot_df = monthly_mai.pivot(index='Month', columns='Year', values='MAI (%)').reset_index()
@@ -1393,3 +1393,4 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
