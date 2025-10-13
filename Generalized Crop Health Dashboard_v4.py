@@ -290,24 +290,40 @@ def sort_fortnight_periods(periods):
     return sorted(periods, key=period_key)
 
 # -----------------------------
-# WEATHER METRICS CALCULATIONS - UPDATED
+# WEATHER METRICS CALCULATIONS - UPDATED to use same month dates for 2023
 # -----------------------------
 def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, agg_func='sum', start_date=None, end_date=None):
-    """Calculate fortnightly metrics for current and last year within date range"""
+    """Calculate fortnightly metrics for current and last year - UPDATED to use same month dates"""
     metrics = {}
     
-    for year in [current_year, last_year]:
-        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
+    # For current year (2024) - use selected date range
+    current_year_data = data_df[data_df['Date_dt'].dt.year == current_year].copy()
+    if start_date and end_date:
+        current_year_data = current_year_data[
+            (current_year_data['Date_dt'] >= pd.to_datetime(start_date)) & 
+            (current_year_data['Date_dt'] <= pd.to_datetime(end_date))
+        ]
+    
+    current_year_data['Fortnight'] = current_year_data['Date_dt'].apply(get_fortnight)
+    
+    # For last year (2023) - use same month range as selected dates but from 2023
+    last_year_data = data_df[data_df['Date_dt'].dt.year == last_year].copy()
+    if start_date and end_date:
+        # Create 2023 dates with same month range
+        start_month = start_date.month
+        end_month = end_date.month
+        last_year_start = date(last_year, start_month, 1)
+        last_year_end = date(last_year, end_month, 28)  # Use 28th to ensure valid date
         
-        # Apply date range filter
-        if start_date and end_date:
-            year_data = year_data[
-                (year_data['Date_dt'] >= pd.to_datetime(start_date)) & 
-                (year_data['Date_dt'] <= pd.to_datetime(end_date))
-            ]
-        
-        year_data['Fortnight'] = year_data['Date_dt'].apply(get_fortnight)
-        
+        last_year_data = last_year_data[
+            (last_year_data['Date_dt'] >= pd.to_datetime(last_year_start)) & 
+            (last_year_data['Date_dt'] <= pd.to_datetime(last_year_end))
+        ]
+    
+    last_year_data['Fortnight'] = last_year_data['Date_dt'].apply(get_fortnight)
+    
+    # Calculate metrics for both years
+    for year, year_data in [(current_year, current_year_data), (last_year, last_year_data)]:
         if agg_func == 'sum':
             fortnight_metrics = year_data.groupby('Fortnight')[metric_col].sum()
         elif agg_func == 'mean':
@@ -327,21 +343,37 @@ def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, 
     return metrics
 
 def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_func='sum', start_date=None, end_date=None):
-    """Calculate monthly metrics for current and last year within date range"""
+    """Calculate monthly metrics for current and last year - UPDATED to use same month dates"""
     metrics = {}
     
-    for year in [current_year, last_year]:
-        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
+    # For current year (2024) - use selected date range
+    current_year_data = data_df[data_df['Date_dt'].dt.year == current_year].copy()
+    if start_date and end_date:
+        current_year_data = current_year_data[
+            (current_year_data['Date_dt'] >= pd.to_datetime(start_date)) & 
+            (current_year_data['Date_dt'] <= pd.to_datetime(end_date))
+        ]
+    
+    current_year_data['Month'] = current_year_data['Date_dt'].dt.strftime('%B')
+    
+    # For last year (2023) - use same month range as selected dates but from 2023
+    last_year_data = data_df[data_df['Date_dt'].dt.year == last_year].copy()
+    if start_date and end_date:
+        # Create 2023 dates with same month range
+        start_month = start_date.month
+        end_month = end_date.month
+        last_year_start = date(last_year, start_month, 1)
+        last_year_end = date(last_year, end_month, 28)  # Use 28th to ensure valid date
         
-        # Apply date range filter
-        if start_date and end_date:
-            year_data = year_data[
-                (year_data['Date_dt'] >= pd.to_datetime(start_date)) & 
-                (year_data['Date_dt'] <= pd.to_datetime(end_date))
-            ]
-        
-        year_data['Month'] = year_data['Date_dt'].dt.strftime('%B')
-        
+        last_year_data = last_year_data[
+            (last_year_data['Date_dt'] >= pd.to_datetime(last_year_start)) & 
+            (last_year_data['Date_dt'] <= pd.to_datetime(last_year_end))
+        ]
+    
+    last_year_data['Month'] = last_year_data['Date_dt'].dt.strftime('%B')
+    
+    # Calculate metrics for both years
+    for year, year_data in [(current_year, current_year_data), (last_year, last_year_data)]:
         if agg_func == 'sum':
             monthly_metrics = year_data.groupby('Month')[metric_col].sum()
         elif agg_func == 'mean':
@@ -361,7 +393,7 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
     return metrics
 
 # -----------------------------
-# CHART CREATION FUNCTIONS - UPDATED
+# CHART CREATION FUNCTIONS - UPDATED with proper fortnight sorting
 # -----------------------------
 def create_fortnightly_comparison_chart(current_year_data, last_year_data, title, yaxis_title):
     """Create fortnightly comparison chart with better visualization"""
@@ -526,8 +558,11 @@ def create_fortnightly_deviation_chart(current_year_data, last_year_data, title,
     
     return fig
 
+# -----------------------------
+# REMOTE SENSING FUNCTIONS - UPDATED to use same month dates for 2023
+# -----------------------------
 def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, end_date):
-    """Create NDVI comparison chart between 2023 and 2024 with dates instead of months"""
+    """Create NDVI comparison chart between 2023 and 2024 - UPDATED to use same month dates"""
     filtered_df = ndvi_df.copy()
     
     if district:
@@ -537,22 +572,32 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
     
-    # Filter for selected date range
-    filtered_df = filtered_df[
+    # For 2024 - use selected date range
+    df_2024 = filtered_df[
         (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
         (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
-        (filtered_df["Date_dt"].dt.year.isin([2023, 2024]))
-    ]
+        (filtered_df["Date_dt"].dt.year == 2024)
+    ].copy()
     
-    if filtered_df.empty:
+    # For 2023 - use same month range as selected dates but from 2023
+    start_month = start_date.month
+    end_month = end_date.month
+    start_day = start_date.day
+    end_day = end_date.day
+    
+    # Create 2023 dates with same month and day range
+    df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
+    df_2023 = df_2023[
+        ((df_2023["Date_dt"].dt.month == start_month) & (df_2023["Date_dt"].dt.day >= start_day)) |
+        ((df_2023["Date_dt"].dt.month > start_month) & (df_2023["Date_dt"].dt.month < end_month)) |
+        ((df_2023["Date_dt"].dt.month == end_month) & (df_2023["Date_dt"].dt.day <= end_day))
+    ].copy()
+    
+    if df_2023.empty and df_2024.empty:
         return None
     
     # Create line chart with actual dates
     fig = go.Figure()
-    
-    # Separate data for 2023 and 2024
-    df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
-    df_2024 = filtered_df[filtered_df["Date_dt"].dt.year == 2024].copy()
     
     # Sort by date
     df_2023 = df_2023.sort_values("Date_dt")
@@ -599,7 +644,7 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
     return fig
 
 def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, end_date):
-    """Create NDWI comparison chart between 2023 and 2024 with dates instead of months"""
+    """Create NDWI comparison chart between 2023 and 2024 - UPDATED to use same month dates"""
     filtered_df = ndwi_df.copy()
     
     if district:
@@ -609,22 +654,32 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
     
-    # Filter for selected date range
-    filtered_df = filtered_df[
+    # For 2024 - use selected date range
+    df_2024 = filtered_df[
         (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
         (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
-        (filtered_df["Date_dt"].dt.year.isin([2023, 2024]))
-    ]
+        (filtered_df["Date_dt"].dt.year == 2024)
+    ].copy()
     
-    if filtered_df.empty:
+    # For 2023 - use same month range as selected dates but from 2023
+    start_month = start_date.month
+    end_month = end_date.month
+    start_day = start_date.day
+    end_day = end_date.day
+    
+    # Create 2023 dates with same month and day range
+    df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
+    df_2023 = df_2023[
+        ((df_2023["Date_dt"].dt.month == start_month) & (df_2023["Date_dt"].dt.day >= start_day)) |
+        ((df_2023["Date_dt"].dt.month > start_month) & (df_2023["Date_dt"].dt.month < end_month)) |
+        ((df_2023["Date_dt"].dt.month == end_month) & (df_2023["Date_dt"].dt.day <= end_day))
+    ].copy()
+    
+    if df_2023.empty and df_2024.empty:
         return None
     
     # Create line chart with actual dates
     fig = go.Figure()
-    
-    # Separate data for 2023 and 2024
-    df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
-    df_2024 = filtered_df[filtered_df["Date_dt"].dt.year == 2024].copy()
     
     # Sort by date
     df_2023 = df_2023.sort_values("Date_dt")
@@ -671,7 +726,7 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
     return fig
 
 def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, start_date, end_date):
-    """Create deviation chart for NDVI and NDWI using dates"""
+    """Create deviation chart for NDVI and NDWI using dates - UPDATED to use same month dates"""
     filtered_df = ndvi_ndwi_df.copy()
     
     if district:
@@ -681,30 +736,49 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
     
-    # Filter for selected date range
-    filtered_df = filtered_df[
+    # For 2024 - use selected date range
+    df_2024 = filtered_df[
         (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
         (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
-        (filtered_df["Date_dt"].dt.year.isin([2023, 2024]))
-    ]
+        (filtered_df["Date_dt"].dt.year == 2024)
+    ].copy()
     
-    if filtered_df.empty:
+    # For 2023 - use same month range as selected dates but from 2023
+    start_month = start_date.month
+    end_month = end_date.month
+    start_day = start_date.day
+    end_day = end_date.day
+    
+    # Create 2023 dates with same month and day range
+    df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
+    df_2023 = df_2023[
+        ((df_2023["Date_dt"].dt.month == start_month) & (df_2023["Date_dt"].dt.day >= start_day)) |
+        ((df_2023["Date_dt"].dt.month > start_month) & (df_2023["Date_dt"].dt.month < end_month)) |
+        ((df_2023["Date_dt"].dt.month == end_month) & (df_2023["Date_dt"].dt.day <= end_day))
+    ].copy()
+    
+    if df_2023.empty or df_2024.empty:
         return None
     
-    # Calculate daily averages and deviations
-    filtered_df['Year'] = filtered_df['Date_dt'].dt.year
-    
-    # Get common dates between years
+    # Calculate daily deviations
     common_dates = []
-    for date_val in filtered_df['Date_dt'].unique():
-        date_2023 = filtered_df[(filtered_df['Date_dt'] == date_val) & (filtered_df['Year'] == 2023)]
-        date_2024 = filtered_df[(filtered_df['Date_dt'] == date_val) & (filtered_df['Year'] == 2024)]
+    for date_2024 in df_2024['Date_dt'].unique():
+        # Find corresponding 2023 date (same month and day)
+        target_month = date_2024.month
+        target_day = date_2024.day
         
-        if not date_2023.empty and not date_2024.empty:
-            ndvi_2023 = date_2023['NDVI'].iloc[0]
-            ndvi_2024 = date_2024['NDVI'].iloc[0]
-            ndwi_2023 = date_2023['NDWI'].iloc[0]
-            ndwi_2024 = date_2024['NDWI'].iloc[0]
+        date_2023_data = df_2023[
+            (df_2023['Date_dt'].dt.month == target_month) & 
+            (df_2023['Date_dt'].dt.day == target_day)
+        ]
+        
+        date_2024_data = df_2024[df_2024['Date_dt'] == date_2024]
+        
+        if not date_2023_data.empty and not date_2024_data.empty:
+            ndvi_2023 = date_2023_data['NDVI'].iloc[0]
+            ndvi_2024 = date_2024_data['NDVI'].iloc[0]
+            ndwi_2023 = date_2023_data['NDWI'].iloc[0]
+            ndwi_2024 = date_2024_data['NDWI'].iloc[0]
             
             if ndvi_2023 != 0:
                 ndvi_dev = ((ndvi_2024 - ndvi_2023) / ndvi_2023) * 100
@@ -717,7 +791,7 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
                 ndwi_dev = 0
                 
             common_dates.append({
-                'Date': date_val,
+                'Date': date_2024,
                 'NDVI_Deviation': round(ndvi_dev, 2),
                 'NDWI_Deviation': round(ndwi_dev, 2)
             })
@@ -928,7 +1002,7 @@ def download_data_as_csv(data_df, filename):
     )
 
 # -----------------------------
-# MAIN UI
+# MAIN UI - NO CHANGES BELOW THIS POINT
 # -----------------------------
 st.markdown(
     """
@@ -953,7 +1027,7 @@ st.markdown(
 )
 
 # --- Date Selection Section ---
-#st.markdown("### 📅 Date Selection")
+st.markdown("### 📅 Date Selection")
 
 # MODIFIED LAYOUT: Taluka on top, Circle below
 col1, col2 = st.columns(2)
@@ -987,7 +1061,7 @@ with col4:
 generate = st.button("🌱 Generate Analysis", use_container_width=True)
 
 # -----------------------------
-# MAIN ANALYSIS
+# MAIN ANALYSIS - UPDATED function calls
 # -----------------------------
 if generate:
     if not district or not sowing_date or not current_date:
@@ -1030,11 +1104,6 @@ if generate:
             st.header(f"🌤️ Weather Metrics - {level}: {level_name}")
             
             if not filtered_weather.empty:
-                # Debug info
-                st.sidebar.info(f"Weather data range: {filtered_weather['Date_dt'].min()} to {filtered_weather['Date_dt'].max()}")
-                st.sidebar.info(f"2023 data points: {len(filtered_weather[filtered_weather['Date_dt'].dt.year == 2023])}")
-                st.sidebar.info(f"2024 data points: {len(filtered_weather[filtered_weather['Date_dt'].dt.year == 2024])}")
-                
                 # I. Rainfall Analysis
                 st.subheader("I. Rainfall Analysis")
                 
@@ -1397,4 +1466,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
