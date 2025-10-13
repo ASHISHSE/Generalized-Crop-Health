@@ -138,7 +138,7 @@ uploaded_weather_file = st.sidebar.file_uploader(
 )
 
 # -----------------------------
-# LOAD DATA - UPDATED with .xlsx weather file
+# LOAD DATA - UPDATED with specific sheet names
 # -----------------------------
 @st.cache_data
 def load_data(_uploaded_file=None):
@@ -159,7 +159,7 @@ def load_data(_uploaded_file=None):
         # Handle weather data based on uploaded file
         if _uploaded_file is not None:
             try:
-                # Read uploaded .xlsx file
+                # Read uploaded .xlsx file with specific sheet names
                 weather_23_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_23')
                 weather_24_df = pd.read_excel(_uploaded_file, sheet_name='Weather_data_24')
                 
@@ -168,17 +168,26 @@ def load_data(_uploaded_file=None):
                 
             except Exception as e:
                 st.sidebar.error(f"Error reading weather file: {e}")
-                st.sidebar.info("Using uploaded file data instead.")
-                weather_df = create_sample_weather_data()
+                st.sidebar.info("Using default weather data instead.")
+                # Try to load default weather data
+                try:
+                    weather_res = requests.get(weather_url, timeout=60)
+                    weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
+                    weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
+                    weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
+                except:
+                    st.sidebar.info("Using sample weather data.")
+                    weather_df = create_sample_weather_data()
         else:
-            # Use uploaded weather data only
+            # Use default weather data with specific sheet names
             try:
                 weather_res = requests.get(weather_url, timeout=60)
                 weather_23_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_23')
                 weather_24_df = pd.read_excel(BytesIO(weather_res.content), sheet_name='Weather_data_24')
                 weather_df = pd.concat([weather_23_df, weather_24_df], ignore_index=True)
-            except:
-                st.sidebar.info("Using uploaded weather data.")
+            except Exception as e:
+                st.sidebar.error(f"Error loading default weather data: {e}")
+                st.sidebar.info("Using sample weather data.")
                 weather_df = create_sample_weather_data()
         
         # Process NDVI & NDWI data
@@ -245,9 +254,9 @@ weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data(upload
 
 # Show info message based on weather data source
 if uploaded_weather_file is not None:
-    st.sidebar.success("✅ Weather data loaded successfully!")
+    st.sidebar.success("✅ Weather data loaded successfully from uploaded file!")
 else:
-    st.sidebar.warning("⚠️ Please upload weather data file for analysis")
+    st.sidebar.info("ℹ️ Using default weather data file: Final_test_weather_data_2023_24_upload.xlsx")
 
 # -----------------------------
 # FORTNIGHT DEFINITION
@@ -805,7 +814,7 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     
     # Group by Year and Month
     monthly_mai = filtered_df.groupby(['Year', 'Month'])['MAI (%)'].mean().reset_index()
-    monthly_mai['MAI (%)'] = monthly_mai['MAI (%)']#.round(2)
+    monthly_mai['MAI (%)'] = monthly_mai['MAI (%)'].round(2)
     
     # Pivot to get 2023 and 2024 columns
     pivot_df = monthly_mai.pivot(index='Month', columns='Year', values='MAI (%)').reset_index()
@@ -1391,6 +1400,4 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True
-
 )
-
