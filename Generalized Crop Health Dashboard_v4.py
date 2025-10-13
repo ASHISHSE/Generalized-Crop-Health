@@ -561,8 +561,11 @@ def create_fortnightly_deviation_chart(current_year_data, last_year_data, title,
 # -----------------------------
 # REMOTE SENSING FUNCTIONS - UPDATED to use same month dates for 2023
 # -----------------------------
+# -----------------------------
+# REMOTE SENSING FUNCTIONS - UPDATED to use same date-month range with mean values
+# -----------------------------
 def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, end_date):
-    """Create NDVI comparison chart between 2023 and 2024 - UPDATED to use same month dates"""
+    """Create NDVI comparison chart between 2023 and 2024 - UPDATED to use same date-month range with mean values"""
     filtered_df = ndvi_df.copy()
     
     if district:
@@ -572,52 +575,62 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
     
-    # For 2024 - use selected date range
-    df_2024 = filtered_df[
-        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
-        (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
-        (filtered_df["Date_dt"].dt.year == 2024)
-    ].copy()
-    
-    # For 2023 - use same month range as selected dates but from 2023
+    # For both years - use same date-month range (day and month)
     start_month = start_date.month
     end_month = end_date.month
     start_day = start_date.day
     end_day = end_date.day
     
-    # Create 2023 dates with same month and day range
+    # Create filtered data for 2024 with same date-month range
+    df_2024 = filtered_df[filtered_df["Date_dt"].dt.year == 2024].copy()
+    df_2024 = df_2024[
+        ((df_2024["Date_dt"].dt.month == start_month) & (df_2024["Date_dt"].dt.day >= start_day)) |
+        ((df_2024["Date_dt"].dt.month > start_month) & (df_2024["Date_dt"].dt.month < end_month)) |
+        ((df_2024["Date_dt"].dt.month == end_month) & (df_2024["Date_dt"].dt.day <= end_day))
+    ]
+    
+    # Create filtered data for 2023 with same date-month range
     df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
     df_2023 = df_2023[
         ((df_2023["Date_dt"].dt.month == start_month) & (df_2023["Date_dt"].dt.day >= start_day)) |
         ((df_2023["Date_dt"].dt.month > start_month) & (df_2023["Date_dt"].dt.month < end_month)) |
         ((df_2023["Date_dt"].dt.month == end_month) & (df_2023["Date_dt"].dt.day <= end_day))
-    ].copy()
+    ]
     
     if df_2023.empty and df_2024.empty:
         return None
     
+    # Calculate mean values for each date-month combination (day-month)
+    df_2023_avg = df_2023.copy()
+    df_2023_avg['DayMonth'] = df_2023_avg['Date_dt'].dt.strftime('%m-%d')
+    df_2023_avg = df_2023_avg.groupby('DayMonth')['NDVI'].mean().reset_index()
+    df_2023_avg['Date_dt'] = pd.to_datetime('2023-' + df_2023_avg['DayMonth'], format='%Y-%m-%d')
+    df_2023_avg = df_2023_avg.sort_values('Date_dt')
+    
+    df_2024_avg = df_2024.copy()
+    df_2024_avg['DayMonth'] = df_2024_avg['Date_dt'].dt.strftime('%m-%d')
+    df_2024_avg = df_2024_avg.groupby('DayMonth')['NDVI'].mean().reset_index()
+    df_2024_avg['Date_dt'] = pd.to_datetime('2024-' + df_2024_avg['DayMonth'], format='%Y-%m-%d')
+    df_2024_avg = df_2024_avg.sort_values('Date_dt')
+    
     # Create line chart with actual dates
     fig = go.Figure()
     
-    # Sort by date
-    df_2023 = df_2023.sort_values("Date_dt")
-    df_2024 = df_2024.sort_values("Date_dt")
-    
-    # Add traces for each year
-    if not df_2023.empty:
+    # Add traces for each year using averaged data
+    if not df_2023_avg.empty:
         fig.add_trace(go.Scatter(
-            x=df_2023["Date_dt"],
-            y=df_2023["NDVI"],
+            x=df_2023_avg["Date_dt"],
+            y=df_2023_avg["NDVI"],
             mode='lines+markers',
             name='2023',
             line=dict(color='#87CEEB', width=3),  # Light blue for 2023
             marker=dict(size=6)
         ))
     
-    if not df_2024.empty:
+    if not df_2024_avg.empty:
         fig.add_trace(go.Scatter(
-            x=df_2024["Date_dt"],
-            y=df_2024["NDVI"],
+            x=df_2024_avg["Date_dt"],
+            y=df_2024_avg["NDVI"],
             mode='lines+markers',
             name='2024',
             line=dict(color='#1E3F66', width=3),  # Dark blue for 2024
@@ -644,7 +657,7 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
     return fig
 
 def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, end_date):
-    """Create NDWI comparison chart between 2023 and 2024 - UPDATED to use same month dates"""
+    """Create NDWI comparison chart between 2023 and 2024 - UPDATED to use same date-month range with mean values"""
     filtered_df = ndwi_df.copy()
     
     if district:
@@ -654,52 +667,62 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
     
-    # For 2024 - use selected date range
-    df_2024 = filtered_df[
-        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
-        (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
-        (filtered_df["Date_dt"].dt.year == 2024)
-    ].copy()
-    
-    # For 2023 - use same month range as selected dates but from 2023
+    # For both years - use same date-month range (day and month)
     start_month = start_date.month
     end_month = end_date.month
     start_day = start_date.day
     end_day = end_date.day
     
-    # Create 2023 dates with same month and day range
+    # Create filtered data for 2024 with same date-month range
+    df_2024 = filtered_df[filtered_df["Date_dt"].dt.year == 2024].copy()
+    df_2024 = df_2024[
+        ((df_2024["Date_dt"].dt.month == start_month) & (df_2024["Date_dt"].dt.day >= start_day)) |
+        ((df_2024["Date_dt"].dt.month > start_month) & (df_2024["Date_dt"].dt.month < end_month)) |
+        ((df_2024["Date_dt"].dt.month == end_month) & (df_2024["Date_dt"].dt.day <= end_day))
+    ]
+    
+    # Create filtered data for 2023 with same date-month range
     df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
     df_2023 = df_2023[
         ((df_2023["Date_dt"].dt.month == start_month) & (df_2023["Date_dt"].dt.day >= start_day)) |
         ((df_2023["Date_dt"].dt.month > start_month) & (df_2023["Date_dt"].dt.month < end_month)) |
         ((df_2023["Date_dt"].dt.month == end_month) & (df_2023["Date_dt"].dt.day <= end_day))
-    ].copy()
+    ]
     
     if df_2023.empty and df_2024.empty:
         return None
     
+    # Calculate mean values for each date-month combination (day-month)
+    df_2023_avg = df_2023.copy()
+    df_2023_avg['DayMonth'] = df_2023_avg['Date_dt'].dt.strftime('%m-%d')
+    df_2023_avg = df_2023_avg.groupby('DayMonth')['NDWI'].mean().reset_index()
+    df_2023_avg['Date_dt'] = pd.to_datetime('2023-' + df_2023_avg['DayMonth'], format='%Y-%m-%d')
+    df_2023_avg = df_2023_avg.sort_values('Date_dt')
+    
+    df_2024_avg = df_2024.copy()
+    df_2024_avg['DayMonth'] = df_2024_avg['Date_dt'].dt.strftime('%m-%d')
+    df_2024_avg = df_2024_avg.groupby('DayMonth')['NDWI'].mean().reset_index()
+    df_2024_avg['Date_dt'] = pd.to_datetime('2024-' + df_2024_avg['DayMonth'], format='%Y-%m-%d')
+    df_2024_avg = df_2024_avg.sort_values('Date_dt')
+    
     # Create line chart with actual dates
     fig = go.Figure()
     
-    # Sort by date
-    df_2023 = df_2023.sort_values("Date_dt")
-    df_2024 = df_2024.sort_values("Date_dt")
-    
-    # Add traces for each year
-    if not df_2023.empty:
+    # Add traces for each year using averaged data
+    if not df_2023_avg.empty:
         fig.add_trace(go.Scatter(
-            x=df_2023["Date_dt"],
-            y=df_2023["NDWI"],
+            x=df_2023_avg["Date_dt"],
+            y=df_2023_avg["NDWI"],
             mode='lines+markers',
             name='2023',
             line=dict(color='#87CEEB', width=3),  # Light blue for 2023
             marker=dict(size=6)
         ))
     
-    if not df_2024.empty:
+    if not df_2024_avg.empty:
         fig.add_trace(go.Scatter(
-            x=df_2024["Date_dt"],
-            y=df_2024["NDWI"],
+            x=df_2024_avg["Date_dt"],
+            y=df_2024_avg["NDWI"],
             mode='lines+markers',
             name='2024',
             line=dict(color='#1E3F66', width=3),  # Dark blue for 2024
@@ -726,7 +749,7 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
     return fig
 
 def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, start_date, end_date):
-    """Create deviation chart for NDVI and NDWI using dates - UPDATED to use same month dates"""
+    """Create deviation chart for NDVI and NDWI using dates - UPDATED to use mean values from comparison charts"""
     filtered_df = ndvi_ndwi_df.copy()
     
     if district:
@@ -736,78 +759,93 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
     if circle:
         filtered_df = filtered_df[filtered_df["Circle"] == circle]
     
-    # For 2024 - use selected date range
-    df_2024 = filtered_df[
-        (filtered_df["Date_dt"] >= pd.to_datetime(start_date)) & 
-        (filtered_df["Date_dt"] <= pd.to_datetime(end_date)) &
-        (filtered_df["Date_dt"].dt.year == 2024)
-    ].copy()
-    
-    # For 2023 - use same month range as selected dates but from 2023
+    # For both years - use same date-month range (day and month)
     start_month = start_date.month
     end_month = end_date.month
     start_day = start_date.day
     end_day = end_date.day
     
-    # Create 2023 dates with same month and day range
+    # Create filtered data for 2024 with same date-month range
+    df_2024 = filtered_df[filtered_df["Date_dt"].dt.year == 2024].copy()
+    df_2024 = df_2024[
+        ((df_2024["Date_dt"].dt.month == start_month) & (df_2024["Date_dt"].dt.day >= start_day)) |
+        ((df_2024["Date_dt"].dt.month > start_month) & (df_2024["Date_dt"].dt.month < end_month)) |
+        ((df_2024["Date_dt"].dt.month == end_month) & (df_2024["Date_dt"].dt.day <= end_day))
+    ]
+    
+    # Create filtered data for 2023 with same date-month range
     df_2023 = filtered_df[filtered_df["Date_dt"].dt.year == 2023].copy()
     df_2023 = df_2023[
         ((df_2023["Date_dt"].dt.month == start_month) & (df_2023["Date_dt"].dt.day >= start_day)) |
         ((df_2023["Date_dt"].dt.month > start_month) & (df_2023["Date_dt"].dt.month < end_month)) |
         ((df_2023["Date_dt"].dt.month == end_month) & (df_2023["Date_dt"].dt.day <= end_day))
-    ].copy()
+    ]
     
     if df_2023.empty or df_2024.empty:
         return None
     
-    # Calculate daily deviations
-    common_dates = []
-    for date_2024 in df_2024['Date_dt'].unique():
-        # Find corresponding 2023 date (same month and day)
-        target_month = date_2024.month
-        target_day = date_2024.day
+    # Calculate mean values for each date-month combination for both years
+    df_2023_avg = df_2023.copy()
+    df_2023_avg['DayMonth'] = df_2023_avg['Date_dt'].dt.strftime('%m-%d')
+    df_2023_avg_ndvi = df_2023_avg.groupby('DayMonth')['NDVI'].mean().reset_index()
+    df_2023_avg_ndwi = df_2023_avg.groupby('DayMonth')['NDWI'].mean().reset_index()
+    
+    df_2024_avg = df_2024.copy()
+    df_2024_avg['DayMonth'] = df_2024_avg['Date_dt'].dt.strftime('%m-%d')
+    df_2024_avg_ndvi = df_2024_avg.groupby('DayMonth')['NDVI'].mean().reset_index()
+    df_2024_avg_ndwi = df_2024_avg.groupby('DayMonth')['NDWI'].mean().reset_index()
+    
+    # Merge the data to get common date-month combinations
+    merged_ndvi = pd.merge(df_2023_avg_ndvi, df_2024_avg_ndvi, on='DayMonth', suffixes=('_2023', '_2024'))
+    merged_ndwi = pd.merge(df_2023_avg_ndwi, df_2024_avg_ndwi, on='DayMonth', suffixes=('_2023', '_2024'))
+    
+    # Calculate deviations using the formula: (2024 - 2023) / 2023 * 100
+    deviations_data = []
+    
+    for _, row in merged_ndvi.iterrows():
+        ndvi_2023 = row['NDVI_2023']
+        ndvi_2024 = row['NDVI_2024']
         
-        date_2023_data = df_2023[
-            (df_2023['Date_dt'].dt.month == target_month) & 
-            (df_2023['Date_dt'].dt.day == target_day)
-        ]
-        
-        date_2024_data = df_2024[df_2024['Date_dt'] == date_2024]
-        
-        if not date_2023_data.empty and not date_2024_data.empty:
-            ndvi_2023 = date_2023_data['NDVI'].iloc[0]
-            ndvi_2024 = date_2024_data['NDVI'].iloc[0]
-            ndwi_2023 = date_2023_data['NDWI'].iloc[0]
-            ndwi_2024 = date_2024_data['NDWI'].iloc[0]
+        if ndvi_2023 != 0:
+            ndvi_dev = ((ndvi_2024 - ndvi_2023) / ndvi_2023) * 100
+        else:
+            ndvi_dev = 0
             
-            if ndvi_2023 != 0:
-                ndvi_dev = ((ndvi_2024 - ndvi_2023) / ndvi_2023) * 100
-            else:
-                ndvi_dev = 0
-                
-            if ndwi_2023 != 0:
-                ndwi_dev = ((ndwi_2024 - ndwi_2023) / ndwi_2023) * 100
-            else:
-                ndwi_dev = 0
-                
-            common_dates.append({
-                'Date': date_2024,
-                'NDVI_Deviation': round(ndvi_dev, 2),
+        deviations_data.append({
+            'DayMonth': row['DayMonth'],
+            'NDVI_Deviation': round(ndvi_dev, 2)
+        })
+    
+    for i, row in enumerate(merged_ndwi.iterrows()):
+        ndwi_2023 = row[1]['NDWI_2023']
+        ndwi_2024 = row[1]['NDWI_2024']
+        
+        if ndwi_2023 != 0:
+            ndwi_dev = ((ndwi_2024 - ndwi_2023) / ndwi_2023) * 100
+        else:
+            ndwi_dev = 0
+            
+        if i < len(deviations_data):
+            deviations_data[i]['NDWI_Deviation'] = round(ndwi_dev, 2)
+        else:
+            deviations_data.append({
+                'DayMonth': row[1]['DayMonth'],
                 'NDWI_Deviation': round(ndwi_dev, 2)
             })
     
-    if not common_dates:
+    if not deviations_data:
         return None
         
-    dev_df = pd.DataFrame(common_dates)
-    dev_df = dev_df.sort_values('Date')
+    dev_df = pd.DataFrame(deviations_data)
+    dev_df['Date_dt'] = pd.to_datetime('2024-' + dev_df['DayMonth'], format='%Y-%m-%d')
+    dev_df = dev_df.sort_values('Date_dt')
     
     # Create deviation chart with dates
     fig = go.Figure()
     
     fig.add_trace(go.Scatter(
         name='NDVI Deviation (%)',
-        x=dev_df['Date'],
+        x=dev_df['Date_dt'],
         y=dev_df['NDVI_Deviation'],
         mode='lines+markers',
         line=dict(color='#27ae60', width=3),
@@ -816,7 +854,7 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
     
     fig.add_trace(go.Scatter(
         name='NDWI Deviation (%)',
-        x=dev_df['Date'],
+        x=dev_df['Date_dt'],
         y=dev_df['NDWI_Deviation'],
         mode='lines+markers',
         line=dict(color='#3498db', width=3),
@@ -831,7 +869,7 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
     level = "Circle" if circle else ("Taluka" if taluka else "District")
     
     fig.update_layout(
-        title=dict(text=f"NDVI & NDWI Daily Deviation (2024 vs 2023) - {level}: {level_name}", x=0.5, xanchor='center'),
+        title=dict(text=f"NDVI & NDWI Deviation (2024 vs 2023) - {level}: {level_name}", x=0.5, xanchor='center'),
         xaxis_title="Date",
         yaxis_title="Deviation (%)",
         template='plotly_white',
@@ -1466,3 +1504,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
