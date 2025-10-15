@@ -1,11 +1,4 @@
-1.when selecting only District generate all talukas data, 
-2.If selecting only Taluka generate all circle data  
-3.generate NDVI & NDWI line graph chart take only date & draw based on Date-Month (for 2023 & 2024)  
-because I want to compare the trend on same chart with started both year line at same point
 
-4. deviation chart as column chart
-
---------main code -------
 
 import streamlit as st
 import pandas as pd
