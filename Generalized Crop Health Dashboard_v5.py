@@ -497,7 +497,7 @@ def create_fortnightly_deviation_chart(current_year_data, last_year_data, title,
     return fig
 
 # -----------------------------
-# UPDATED NDVI & NDWI CHART FUNCTIONS - FIXED with Date-Month format
+# UPDATED NDVI & NDWI CHART FUNCTIONS - Date-Month format and Column Deviation
 # -----------------------------
 def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, end_date):
     """Create NDVI comparison chart between 2023 and 2024 with Date-Month x-axis"""
@@ -913,15 +913,8 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     ), secondary_y=True)
     
     # Determine level name for title
-    if circle and circle != "":
-        level_name = circle
-        level = "Circle"
-    elif taluka and taluka != "":
-        level_name = taluka
-        level = "Taluka"
-    else:
-        level_name = district
-        level = "District"
+    level_name = circle if circle else (taluka if taluka else district)
+    level = "Circle" if circle else ("Taluka" if taluka else "District")
     
     fig.update_layout(
         title=dict(text=f"MAI Monthly Comparison: 2023 vs 2024 with Deviation - {level}: {level_name}", x=0.5, xanchor='center'),
@@ -1002,30 +995,23 @@ st.markdown(
 # --- Date Selection Section ---
 st.markdown("### 📅 Date Selection")
 
-# MODIFIED LAYOUT: Dynamic location selection based on requirements
+# MODIFIED LAYOUT: Taluka on top, Circle below
 col1, col2 = st.columns(2)
 
 with col1:
     district = st.selectbox("District *", [""] + districts)
-    
-    # Taluka selection - show all talukas if no district selected
+    # Taluka - moved to top position
     if district:
         taluka_options = [""] + sorted(weather_df[weather_df["District"] == district]["Taluka"].dropna().unique().tolist())
     else:
-        # If no district selected, show all talukas
         taluka_options = [""] + talukas
     taluka = st.selectbox("Taluka", taluka_options)
 
 with col2:
-    # Circle selection logic
+    # Circle - moved below Taluka
     if taluka and taluka != "":
-        # If taluka is selected, show circles from that taluka
         circle_options = [""] + sorted(weather_df[weather_df["Taluka"] == taluka]["Circle"].dropna().unique().tolist())
-    elif district and district != "" and (not taluka or taluka == ""):
-        # If only district is selected, show all circles from that district
-        circle_options = [""] + sorted(weather_df[weather_df["District"] == district]["Circle"].dropna().unique().tolist())
     else:
-        # If nothing selected, show all circles
         circle_options = [""] + circles
     circle = st.selectbox("Circle", circle_options)
 
