@@ -356,14 +356,14 @@ def aggregate_mai_data_by_level(data_df, district, taluka, circle):
         return filtered_df
 
 # -----------------------------
-# FORTNIGHT DEFINITION
+# UPDATED FORTNIGHT DEFINITION WITH SEQUENTIAL ORDERING
 # -----------------------------
 def get_fortnight(date_obj):
-    """Get fortnight from date (1st or 2nd)"""
+    """Get fortnight from date (1st or 2nd) with proper month ordering"""
     if date_obj.day <= 15:
-        return f"1FN {date_obj.strftime('%b')}"
+        return f"{date_obj.strftime('%b')} 1FN"
     else:
-        return f"2FN {date_obj.strftime('%b')}"
+        return f"{date_obj.strftime('%b')} 2FN"
 
 def get_fortnight_period(date_obj):
     """Get start and end dates for a fortnight"""
@@ -381,15 +381,44 @@ def get_fortnight_period(date_obj):
             end_date = date(year, month + 1, 1) - timedelta(days=1)
     return start_date, end_date
 
+def get_fortnight_sort_key(fortnight_str):
+    """Create sort key for fortnight strings to ensure proper sequential ordering"""
+    month_order = {
+        'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+        'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+    }
+    
+    # Extract month and fortnight
+    parts = fortnight_str.split()
+    if len(parts) >= 2:
+        month_abbr = parts[0][:3]  # Get first 3 chars for month abbreviation
+        fn_type = parts[1]
+        
+        month_num = month_order.get(month_abbr, 13)  # Default to 13 if month not found
+        fn_num = 1 if '1FN' in fn_type else 2
+        
+        return (month_num, fn_num)
+    return (13, 1)  # Default for invalid formats
+
 # -----------------------------
-# WEATHER METRICS CALCULATIONS - UPDATED
+# UPDATED WEATHER METRICS CALCULATIONS - DATE RANGE BASED
 # -----------------------------
-def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, agg_func='sum'):
-    """Calculate fortnightly metrics for current and last year"""
+def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, agg_func='sum', start_date=None, end_date=None):
+    """Calculate fortnightly metrics for current and last year within date range"""
     metrics = {}
     
     for year in [current_year, last_year]:
-        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
+        # Filter by year and date range
+        year_data = data_df[
+            (data_df['Date_dt'].dt.year == year) & 
+            (data_df['Date_dt'] >= pd.to_datetime(start_date).replace(year=year)) & 
+            (data_df['Date_dt'] <= pd.to_datetime(end_date).replace(year=year))
+        ].copy()
+        
+        if year_data.empty:
+            metrics[year] = pd.Series(dtype=float)
+            continue
+            
         year_data['Fortnight'] = year_data['Date_dt'].apply(get_fortnight)
         
         if agg_func == 'sum':
@@ -410,12 +439,22 @@ def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, 
     
     return metrics
 
-def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_func='sum'):
-    """Calculate monthly metrics for current and last year"""
+def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_func='sum', start_date=None, end_date=None):
+    """Calculate monthly metrics for current and last year within date range"""
     metrics = {}
     
     for year in [current_year, last_year]:
-        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
+        # Filter by year and date range
+        year_data = data_df[
+            (data_df['Date_dt'].dt.year == year) & 
+            (data_df['Date_dt'] >= pd.to_datetime(start_date).replace(year=year)) & 
+            (data_df['Date_dt'] <= pd.to_datetime(end_date).replace(year=year))
+        ].copy()
+        
+        if year_data.empty:
+            metrics[year] = pd.Series(dtype=float)
+            continue
+            
         year_data['Month'] = year_data['Date_dt'].dt.strftime('%B')
         
         if agg_func == 'sum':
@@ -437,12 +476,12 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
     return metrics
 
 # -----------------------------
-# CHART CREATION FUNCTIONS - UPDATED
+# UPDATED CHART CREATION FUNCTIONS - SEQUENTIAL FORTNIGHT ORDERING
 # -----------------------------
 def create_fortnightly_comparison_chart(current_year_data, last_year_data, title, yaxis_title):
-    """Create fortnightly comparison chart with better visualization"""
-    # Get all possible periods
-    all_periods = sorted(set(current_year_data.index) | set(last_year_data.index))
+    """Create fortnightly comparison chart with sequential month ordering"""
+    # Get all possible periods and sort them sequentially
+    all_periods = sorted(set(current_year_data.index) | set(last_year_data.index), key=get_fortnight_sort_key)
     
     current_values = [current_year_data.get(period, 0) for period in all_periods]
     last_values = [last_year_data.get(period, 0) for period in all_periods]
@@ -557,8 +596,9 @@ def create_monthly_clustered_chart(current_year_data, last_year_data, title, yax
     return fig
 
 def create_fortnightly_deviation_chart(current_year_data, last_year_data, title, yaxis_title):
-    """Create fortnightly deviation chart"""
-    all_periods = sorted(set(current_year_data.index) | set(last_year_data.index))
+    """Create fortnightly deviation chart with sequential ordering"""
+    # Get all possible periods and sort them sequentially
+    all_periods = sorted(set(current_year_data.index) | set(last_year_data.index), key=get_fortnight_sort_key)
     
     deviations = []
     deviation_labels = []
@@ -603,7 +643,7 @@ def create_fortnightly_deviation_chart(current_year_data, last_year_data, title,
     return fig
 
 # -----------------------------
-# UPDATED NDVI & NDWI CHART FUNCTIONS - FIXED with Date-Month format
+# UPDATED NDVI & NDWI CHART FUNCTIONS - DATE RANGE BASED
 # -----------------------------
 def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, end_date):
     """Create NDVI comparison chart between 2023 and 2024 with Date-Month x-axis"""
@@ -911,13 +951,40 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
     
     return fig
 
-def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
-    """Create monthly MAI comparison chart for 2023 vs 2024 with deviation"""
+def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle, start_date, end_date):
+    """Create monthly MAI comparison chart for 2023 vs 2024 with deviation - DATE RANGE BASED"""
     # Aggregate data based on level
     filtered_df = aggregate_mai_data_by_level(mai_df, district, taluka, circle)
     
-    # Filter for 2023 and 2024
-    filtered_df = filtered_df[filtered_df["Year"].isin([2023, 2024])]
+    # Convert start_date and end_date to datetime
+    start_date_dt = pd.to_datetime(start_date)
+    end_date_dt = pd.to_datetime(end_date)
+    
+    # Month order for proper sorting
+    month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
+                  'July', 'August', 'September', 'October', 'November', 'December']
+    
+    # Get months in the selected date range
+    selected_months = []
+    current_date = start_date_dt.replace(day=1)
+    while current_date <= end_date_dt:
+        month_name = current_date.strftime('%B')
+        if month_name not in selected_months:
+            selected_months.append(month_name)
+        # Move to next month
+        if current_date.month == 12:
+            current_date = current_date.replace(year=current_date.year + 1, month=1)
+        else:
+            current_date = current_date.replace(month=current_date.month + 1)
+    
+    # Sort months according to month_order
+    selected_months = [month for month in month_order if month in selected_months]
+    
+    # Filter for 2023 and 2024 and selected months
+    filtered_df = filtered_df[
+        filtered_df["Year"].isin([2023, 2024]) & 
+        filtered_df["Month"].isin(selected_months)
+    ]
     
     if filtered_df.empty:
         return None
@@ -929,12 +996,8 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     # Pivot to get 2023 and 2024 columns
     pivot_df = monthly_mai.pivot(index='Month', columns='Year', values='MAI (%)').reset_index()
     
-    # Month order for proper sorting
-    month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
-                  'July', 'August', 'September', 'October', 'November', 'December']
-    
-    # Sort months
-    pivot_df['Month'] = pd.Categorical(pivot_df['Month'], categories=month_order, ordered=True)
+    # Sort months according to selected_months order
+    pivot_df['Month'] = pd.Categorical(pivot_df['Month'], categories=selected_months, ordered=True)
     pivot_df = pivot_df.sort_values('Month')
     
     # Get values
@@ -1140,7 +1203,7 @@ if generate:
             level = "District"
             level_name = district
 
-        st.info(f"📊 Calculating metrics for **{level}**: {level_name}")
+        st.info(f"📊 Calculating metrics for **{level}**: {level_name} (Date Range: {sowing_date_str} to {current_date_str})")
 
         # Aggregate weather data based on selected level
         filtered_weather = aggregate_weather_data_by_level(weather_df, district, taluka, circle)
@@ -1167,7 +1230,7 @@ if generate:
                 with col1:
                     # Fortnightly Rainfall Comparison
                     fortnightly_rainfall = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "Rainfall", "sum"
+                        filtered_weather, current_year, last_year, "Rainfall", "sum", sowing_date, current_date
                     )
                     fig_rainfall_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rainfall[current_year], 
@@ -1190,7 +1253,7 @@ if generate:
                 # Monthly Analysis
                 st.markdown("##### Monthly Analysis")
                 monthly_rainfall = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "Rainfall", "sum"
+                    filtered_weather, current_year, last_year, "Rainfall", "sum", sowing_date, current_date
                 )
                 fig_rainfall_monthly = create_monthly_clustered_chart(
                     monthly_rainfall[current_year], 
@@ -1210,7 +1273,7 @@ if generate:
                 with col1:
                     # Fortnightly Rainy Days
                     fortnightly_rainy_days = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "Rainfall", "count"
+                        filtered_weather, current_year, last_year, "Rainfall", "count", sowing_date, current_date
                     )
                     fig_rainy_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rainy_days[current_year], 
@@ -1233,7 +1296,7 @@ if generate:
                 # Monthly Analysis
                 st.markdown("##### Monthly Analysis")
                 monthly_rainy_days = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "Rainfall", "count"
+                    filtered_weather, current_year, last_year, "Rainfall", "count", sowing_date, current_date
                 )
                 fig_rainy_monthly = create_monthly_clustered_chart(
                     monthly_rainy_days[current_year], 
@@ -1253,7 +1316,7 @@ if generate:
                 with col1:
                     # Fortnightly Tmax
                     fortnightly_tmax = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "Tmax", "mean"
+                        filtered_weather, current_year, last_year, "Tmax", "mean", sowing_date, current_date
                     )
                     fig_tmax_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_tmax[current_year], 
@@ -1275,7 +1338,7 @@ if generate:
                 
                 # Monthly Tmax
                 monthly_tmax = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "Tmax", "mean"
+                    filtered_weather, current_year, last_year, "Tmax", "mean", sowing_date, current_date
                 )
                 fig_tmax_monthly = create_monthly_clustered_chart(
                     monthly_tmax[current_year], 
@@ -1292,7 +1355,7 @@ if generate:
                 with col1:
                     # Fortnightly Tmin
                     fortnightly_tmin = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "Tmin", "mean"
+                        filtered_weather, current_year, last_year, "Tmin", "mean", sowing_date, current_date
                     )
                     fig_tmin_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_tmin[current_year], 
@@ -1314,7 +1377,7 @@ if generate:
                 
                 # Monthly Tmin
                 monthly_tmin = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "Tmin", "mean"
+                    filtered_weather, current_year, last_year, "Tmin", "mean", sowing_date, current_date
                 )
                 fig_tmin_monthly = create_monthly_clustered_chart(
                     monthly_tmin[current_year], 
@@ -1334,7 +1397,7 @@ if generate:
                 with col1:
                     # Fortnightly RH max
                     fortnightly_rh_max = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "max_Rh", "mean"
+                        filtered_weather, current_year, last_year, "max_Rh", "mean", sowing_date, current_date
                     )
                     fig_rh_max_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rh_max[current_year], 
@@ -1356,7 +1419,7 @@ if generate:
                 
                 # Monthly RH max
                 monthly_rh_max = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "max_Rh", "mean"
+                    filtered_weather, current_year, last_year, "max_Rh", "mean", sowing_date, current_date
                 )
                 fig_rh_max_monthly = create_monthly_clustered_chart(
                     monthly_rh_max[current_year], 
@@ -1373,7 +1436,7 @@ if generate:
                 with col1:
                     # Fortnightly RH min
                     fortnightly_rh_min = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "min_Rh", "mean"
+                        filtered_weather, current_year, last_year, "min_Rh", "mean", sowing_date, current_date
                     )
                     fig_rh_min_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rh_min[current_year], 
@@ -1395,7 +1458,7 @@ if generate:
                 
                 # Monthly RH min
                 monthly_rh_min = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "min_Rh", "mean"
+                    filtered_weather, current_year, last_year, "min_Rh", "mean", sowing_date, current_date
                 )
                 fig_rh_min_monthly = create_monthly_clustered_chart(
                     monthly_rh_min[current_year], 
@@ -1445,7 +1508,7 @@ if generate:
             # IV. MAI Analysis (UPDATED - Monthly Comparison with Deviation)
             st.subheader("IV. MAI Analysis")
             mai_monthly_fig = create_mai_monthly_comparison_chart(
-                mai_df, district, taluka, circle
+                mai_df, district, taluka, circle, sowing_date, current_date
             )
             if mai_monthly_fig:
                 st.plotly_chart(mai_monthly_fig, use_container_width=True)
