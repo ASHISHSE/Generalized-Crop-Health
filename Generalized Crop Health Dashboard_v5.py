@@ -182,8 +182,8 @@ def load_data(_uploaded_file=None):
                 weather_df = create_sample_weather_data()
         
         # Process NDVI & NDWI data
-        ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
-        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
+        ndvi_ndwi_df["Date(DD-MM-YYYY)"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
+        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date(DD-MM-YYYY)"]).copy()
         
         # FIX: Check and rename NDVI/NDWI columns if needed
         ndvi_ndwi_columns = ndvi_ndwi_df.columns.tolist()
@@ -215,7 +215,7 @@ def load_data(_uploaded_file=None):
         mai_df["MAI (%)"] = pd.to_numeric(mai_df["MAI (%)"], errors="coerce")
         
         # Process Weather data
-        weather_df["Date_dt"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
+        weather_df["Date(DD-MM-YYYY)"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
         weather_df = weather_df.dropna(subset=["Date_dt"]).copy()
         
         # Convert numeric columns for weather
@@ -318,7 +318,7 @@ def aggregate_weather_data_by_level(data_df, district=None, taluka=None, circle=
         filtered_data = data_df[data_df["District"] == district].copy()
         
         # Group by date and taluka, calculate metrics for each taluka
-        aggregated = filtered_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
+        aggregated = filtered_data.groupby(['Date(DD-MM-YYYY)', 'District', 'Taluka']).agg({
             'Rainfall': 'sum',  # Sum for rainfall
             'Rainy_days': 'sum',  # Sum for rainy days
             'Tmax': 'mean',  # Mean for Tmax
@@ -356,7 +356,7 @@ def aggregate_remote_sensing_data_by_level(data_df, metric_col, district=None, t
         
         if not non_zero_data.empty:
             # Group by date and calculate mean (excluding 0 values)
-            aggregated = non_zero_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
+            aggregated = non_zero_data.groupby(['Date(DD-MM-YYYY)', 'District', 'Taluka']).agg({
                 metric_col: 'mean'
             }).reset_index()
             
@@ -375,7 +375,7 @@ def aggregate_remote_sensing_data_by_level(data_df, metric_col, district=None, t
         
         if not non_zero_data.empty:
             # Group by date and taluka, calculate mean for each taluka
-            aggregated = non_zero_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
+            aggregated = non_zero_data.groupby(['Date(DD-MM-YYYY)', 'District', 'Taluka']).agg({
                 metric_col: 'mean'
             }).reset_index()
             
@@ -423,8 +423,8 @@ def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, 
     metrics = {}
     
     for year in [current_year, last_year]:
-        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
-        year_data['Fortnight'] = year_data['Date_dt'].apply(get_fortnight)
+        year_data = data_df[data_df['Date(DD-MM-YYYY)'].dt.year == year].copy()
+        year_data['Fortnight'] = year_data['Date(DD-MM-YYYY)'].apply(get_fortnight)
         
         if agg_func == 'sum':
             fortnight_metrics = year_data.groupby('Fortnight')[metric_col].sum()
@@ -449,8 +449,8 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
     metrics = {}
     
     for year in [current_year, last_year]:
-        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
-        year_data['Month'] = year_data['Date_dt'].dt.strftime('%B')
+        year_data = data_df[data_df['Date(DD-MM-YYYY)'].dt.year == year].copy()
+        year_data['Month'] = year_data['Date(DD-MM-YYYY)'].dt.strftime('%B')
         
         if agg_func == 'sum':
             monthly_metrics = year_data.groupby('Month')[metric_col].sum()
@@ -658,15 +658,15 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
         
         # Filter data for this year and date range
         year_data = filtered_df[
-            (filtered_df["Date_dt"] >= year_start) & 
-            (filtered_df["Date_dt"] <= year_end) &
-            (filtered_df["Date_dt"].dt.year == year)
+            (filtered_df["Date(DD-MM-YYYY)"] >= year_start) & 
+            (filtered_df["Date(DD-MM-YYYY)"] <= year_end) &
+            (filtered_df["Date(DD-MM-YYYY)"].dt.year == year)
         ].copy()
         
         if not year_data.empty:
             # Create Date-Month format (DD-MM) for x-axis
-            year_data['Date_Month'] = year_data['Date_dt'].dt.strftime('%d-%m')
-            year_data['DayOfYear'] = year_data['Date_dt'].dt.dayofyear
+            year_data['Date_Month'] = year_data['Date(DD-MM-YYYY)'].dt.strftime('%d-%m')
+            year_data['DayOfYear'] = year_data['Date(DD-MM-YYYY)'].dt.dayofyear
             
             # Sort by date
             year_data = year_data.sort_values('DayOfYear')
@@ -763,8 +763,8 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
         
         if not year_data.empty:
             # Create Date-Month format (DD-MM) for x-axis
-            year_data['Date_Month'] = year_data['Date_dt'].dt.strftime('%d-%m')
-            year_data['DayOfYear'] = year_data['Date_dt'].dt.dayofyear
+            year_data['Date_Month'] = year_data['Date(DD-MM-YYYY)'].dt.strftime('%d-%m')
+            year_data['DayOfYear'] = year_data['Date(DD-MM-YYYY)'].dt.dayofyear
             
             # Sort by date
             year_data = year_data.sort_values('DayOfYear')
@@ -853,9 +853,9 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
         year_end = end_date_dt.replace(year=year)
         
         year_data = filtered_df[
-            (filtered_df["Date_dt"] >= year_start) & 
-            (filtered_df["Date_dt"] <= year_end) &
-            (filtered_df["Date_dt"].dt.year == year)
+            (filtered_df["Date(DD-MM-YYYY)"] >= year_start) & 
+            (filtered_df["Date(DD-MM-YYYY)"] <= year_end) &
+            (filtered_df["Date(DD-MM-YYYY)"].dt.year == year)
         ].copy()
         
         if not year_data.empty:
@@ -1516,3 +1516,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
