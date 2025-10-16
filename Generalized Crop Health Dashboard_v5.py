@@ -181,14 +181,27 @@ def load_data(_uploaded_file=None):
                 st.sidebar.info("Using uploaded weather data.")
                 weather_df = create_sample_weather_data()
         
-        # Process NDVI & NDWI data
-        ndvi_ndwi_df["Date(DD-MM-YYYY)"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
-        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date(DD-MM-YYYY)"]).copy()
-        
-        # FIX: Check and rename NDVI/NDWI columns if needed
+        # FIX: Process NDVI & NDWI data with proper date column handling
         ndvi_ndwi_columns = ndvi_ndwi_df.columns.tolist()
         
-        # Check for different possible column names for NDVI and NDWI
+        # Find date column
+        date_col = None
+        for col in ndvi_ndwi_columns:
+            col_lower = str(col).lower()
+            if 'date' in col_lower:
+                date_col = col
+                break
+        
+        if date_col:
+            ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df[date_col], errors="coerce")
+        else:
+            # If no date column found, create one with sample dates
+            st.sidebar.warning("No date column found in NDVI/NDWI data. Using sample dates.")
+            ndvi_ndwi_df["Date_dt"] = pd.date_range(start='2023-01-01', periods=len(ndvi_ndwi_df), freq='D')
+        
+        ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
+        
+        # FIX: Check and rename NDVI/NDWI columns if needed
         ndvi_col = None
         ndwi_col = None
         
@@ -205,26 +218,85 @@ def load_data(_uploaded_file=None):
         if ndwi_col and ndwi_col != 'NDWI':
             ndvi_ndwi_df = ndvi_ndwi_df.rename(columns={ndwi_col: 'NDWI'})
         
-        # If NDWI column doesn't exist, create a dummy one
+        # If NDVI/NDWI columns don't exist, create dummy ones
+        if 'NDVI' not in ndvi_ndwi_df.columns:
+            ndvi_ndwi_df['NDVI'] = np.random.uniform(0.1, 0.9, len(ndvi_ndwi_df))
+            st.sidebar.warning("NDVI column not found in data. Using sample data for demonstration.")
+        
         if 'NDWI' not in ndvi_ndwi_df.columns:
             ndvi_ndwi_df['NDWI'] = np.random.uniform(-0.5, 0.5, len(ndvi_ndwi_df))
             st.sidebar.warning("NDWI column not found in data. Using sample data for demonstration.")
         
-        # Process MAI data
+        # FIX: Process MAI data with proper date handling
+        mai_columns = mai_df.columns.tolist()
+        
+        # Find date-related columns in MAI data
+        mai_date_col = None
+        for col in mai_columns:
+            col_lower = str(col).lower()
+            if 'date' in col_lower:
+                mai_date_col = col
+                break
+        
+        if mai_date_col:
+            mai_df["Date_dt"] = pd.to_datetime(mai_df[mai_date_col], errors="coerce")
+        else:
+            # If no date column found, create one with sample dates
+            st.sidebar.warning("No date column found in MAI data. Using sample dates.")
+            mai_df["Date_dt"] = pd.date_range(start='2023-01-01', periods=len(mai_df), freq='M')
+        
+        mai_df = mai_df.dropna(subset=["Date_dt"]).copy()
+        
+        # Process MAI numeric columns
         mai_df["Year"] = pd.to_numeric(mai_df["Year"], errors="coerce")
         mai_df["MAI (%)"] = pd.to_numeric(mai_df["MAI (%)"], errors="coerce")
         
-        # Process Weather data
-        weather_df["Date(DD-MM-YYYY)"] = pd.to_datetime(weather_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
+        # Add Month column for MAI data if not exists
+        if 'Month' not in mai_df.columns:
+            mai_df['Month'] = mai_df['Date_dt'].dt.strftime('%B')
+        
+        # FIX: Process Weather data with proper date handling
+        weather_columns = weather_df.columns.tolist()
+        
+        # Find date column in weather data
+        weather_date_col = None
+        for col in weather_columns:
+            col_lower = str(col).lower()
+            if 'date' in col_lower:
+                weather_date_col = col
+                break
+        
+        if weather_date_col:
+            weather_df["Date_dt"] = pd.to_datetime(weather_df[weather_date_col], errors="coerce")
+        else:
+            # If no date column found, create one with sample dates
+            st.sidebar.warning("No date column found in weather data. Using sample dates.")
+            weather_df["Date_dt"] = pd.date_range(start='2023-01-01', periods=len(weather_df), freq='D')
+        
         weather_df = weather_df.dropna(subset=["Date_dt"]).copy()
         
         # Convert numeric columns for weather
         for col in ["Rainfall", "Tmax", "Tmin", "max_Rh", "min_Rh"]:
             if col in weather_df.columns:
                 weather_df[col] = pd.to_numeric(weather_df[col], errors="coerce")
+            else:
+                # Create sample data if column doesn't exist
+                if col == "Rainfall":
+                    weather_df[col] = np.random.uniform(0, 50, len(weather_df))
+                elif col in ["Tmax", "Tmin"]:
+                    weather_df[col] = np.random.uniform(15, 40, len(weather_df))
+                elif col in ["max_Rh", "min_Rh"]:
+                    weather_df[col] = np.random.uniform(30, 95, len(weather_df))
+                st.sidebar.warning(f"{col} column not found in weather data. Using sample data.")
         
         # ADDED: Calculate Rainy_days column
         weather_df["Rainy_days"] = (weather_df["Rainfall"] > 0).astype(int)
+        
+        # FIX: Ensure required location columns exist
+        for col in ["District", "Taluka", "Circle"]:
+            if col not in weather_df.columns:
+                weather_df[col] = "Unknown"
+                st.sidebar.warning(f"{col} column not found in weather data. Using placeholder values.")
         
         # Get unique locations from all datasets
         districts = sorted(weather_df["District"].dropna().unique().tolist())
@@ -237,7 +309,9 @@ def load_data(_uploaded_file=None):
         st.error(f"Error loading data: {e}")
         # Return sample data if main loading fails
         sample_weather = create_sample_weather_data()
-        return sample_weather, pd.DataFrame(), pd.DataFrame(), [], [], []
+        sample_ndvi_ndwi = create_sample_ndvi_ndwi_data()
+        sample_mai = create_sample_mai_data()
+        return sample_weather, sample_ndvi_ndwi, sample_mai, ['Ahilyanagar', 'Pune', 'Nagpur'], ['Akole', 'Ahilyanagar', 'Bhingar'], ['Akole', 'Nalegaon', 'Bhingar']
 
 def create_sample_weather_data():
     """Create sample weather data for demonstration"""
@@ -271,6 +345,59 @@ def create_sample_weather_data():
     sample_df["Rainy_days"] = (sample_df["Rainfall"] > 0).astype(int)
     return sample_df
 
+def create_sample_ndvi_ndwi_data():
+    """Create sample NDVI/NDWI data for demonstration"""
+    dates = pd.date_range(start='2023-01-01', end='2024-12-31', freq='D')
+    sample_data = []
+    
+    districts = ['Ahilyanagar', 'Pune', 'Nagpur']
+    talukas = ['Akole', 'Ahilyanagar', 'Bhingar']
+    circles = ['Akole', 'Nalegaon', 'Bhingar']
+    
+    for i, date_val in enumerate(dates):
+        if i % 10 == 0:  # Sample every 10 days to reduce data size
+            district = districts[i % len(districts)]
+            taluka = talukas[i % len(talukas)]
+            circle = circles[i % len(circles)]
+            
+            sample_data.append({
+                'District': district,
+                'Taluka': taluka,
+                'Circle': circle,
+                'Date(DD-MM-YYYY)': date_val.strftime('%d-%m-%Y'),
+                'NDVI': np.random.uniform(0.1, 0.9),
+                'NDWI': np.random.uniform(-0.5, 0.5),
+                'Date_dt': date_val
+            })
+    
+    return pd.DataFrame(sample_data)
+
+def create_sample_mai_data():
+    """Create sample MAI data for demonstration"""
+    dates = pd.date_range(start='2023-01-01', end='2024-12-31', freq='M')
+    sample_data = []
+    
+    districts = ['Ahilyanagar', 'Pune', 'Nagpur']
+    talukas = ['Akole', 'Ahilyanagar', 'Bhingar']
+    circles = ['Akole', 'Nalegaon', 'Bhingar']
+    
+    for i, date_val in enumerate(dates):
+        district = districts[i % len(districts)]
+        taluka = talukas[i % len(talukas)]
+        circle = circles[i % len(circles)]
+        
+        sample_data.append({
+            'District': district,
+            'Taluka': taluka,
+            'Circle': circle,
+            'Year': date_val.year,
+            'Month': date_val.strftime('%B'),
+            'MAI (%)': np.random.uniform(0, 100),
+            'Date_dt': date_val
+        })
+    
+    return pd.DataFrame(sample_data)
+
 # Load data with the uploaded file
 weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data(uploaded_weather_file)
 
@@ -279,6 +406,9 @@ if uploaded_weather_file is not None:
     st.sidebar.success("✅ Weather data loaded successfully!")
 else:
     st.sidebar.warning("⚠️ Please upload weather data file for analysis")
+
+# Show data info
+st.sidebar.info(f"📁 Data loaded: Weather({len(weather_df)} rows), NDVI/NDWI({len(ndvi_ndwi_df)} rows), MAI({len(mai_df)} rows)")
 
 # -----------------------------
 # UPDATED DATA AGGREGATION FUNCTIONS
@@ -318,7 +448,7 @@ def aggregate_weather_data_by_level(data_df, district=None, taluka=None, circle=
         filtered_data = data_df[data_df["District"] == district].copy()
         
         # Group by date and taluka, calculate metrics for each taluka
-        aggregated = filtered_data.groupby(['Date(DD-MM-YYYY)', 'District', 'Taluka']).agg({
+        aggregated = filtered_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
             'Rainfall': 'sum',  # Sum for rainfall
             'Rainy_days': 'sum',  # Sum for rainy days
             'Tmax': 'mean',  # Mean for Tmax
@@ -356,7 +486,7 @@ def aggregate_remote_sensing_data_by_level(data_df, metric_col, district=None, t
         
         if not non_zero_data.empty:
             # Group by date and calculate mean (excluding 0 values)
-            aggregated = non_zero_data.groupby(['Date(DD-MM-YYYY)', 'District', 'Taluka']).agg({
+            aggregated = non_zero_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
                 metric_col: 'mean'
             }).reset_index()
             
@@ -375,7 +505,7 @@ def aggregate_remote_sensing_data_by_level(data_df, metric_col, district=None, t
         
         if not non_zero_data.empty:
             # Group by date and taluka, calculate mean for each taluka
-            aggregated = non_zero_data.groupby(['Date(DD-MM-YYYY)', 'District', 'Taluka']).agg({
+            aggregated = non_zero_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
                 metric_col: 'mean'
             }).reset_index()
             
@@ -423,8 +553,12 @@ def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, 
     metrics = {}
     
     for year in [current_year, last_year]:
-        year_data = data_df[data_df['Date(DD-MM-YYYY)'].dt.year == year].copy()
-        year_data['Fortnight'] = year_data['Date(DD-MM-YYYY)'].apply(get_fortnight)
+        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
+        if year_data.empty:
+            metrics[year] = pd.Series(dtype=float)
+            continue
+            
+        year_data['Fortnight'] = year_data['Date_dt'].apply(get_fortnight)
         
         if agg_func == 'sum':
             fortnight_metrics = year_data.groupby('Fortnight')[metric_col].sum()
@@ -449,8 +583,12 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
     metrics = {}
     
     for year in [current_year, last_year]:
-        year_data = data_df[data_df['Date(DD-MM-YYYY)'].dt.year == year].copy()
-        year_data['Month'] = year_data['Date(DD-MM-YYYY)'].dt.strftime('%B')
+        year_data = data_df[data_df['Date_dt'].dt.year == year].copy()
+        if year_data.empty:
+            metrics[year] = pd.Series(dtype=float)
+            continue
+            
+        year_data['Month'] = year_data['Date_dt'].dt.strftime('%B')
         
         if agg_func == 'sum':
             monthly_metrics = year_data.groupby('Month')[metric_col].sum()
@@ -658,15 +796,15 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
         
         # Filter data for this year and date range
         year_data = filtered_df[
-            (filtered_df["Date(DD-MM-YYYY)"] >= year_start) & 
-            (filtered_df["Date(DD-MM-YYYY)"] <= year_end) &
-            (filtered_df["Date(DD-MM-YYYY)"].dt.year == year)
+            (filtered_df["Date_dt"] >= year_start) & 
+            (filtered_df["Date_dt"] <= year_end) &
+            (filtered_df["Date_dt"].dt.year == year)
         ].copy()
         
         if not year_data.empty:
             # Create Date-Month format (DD-MM) for x-axis
-            year_data['Date_Month'] = year_data['Date(DD-MM-YYYY)'].dt.strftime('%d-%m')
-            year_data['DayOfYear'] = year_data['Date(DD-MM-YYYY)'].dt.dayofyear
+            year_data['Date_Month'] = year_data['Date_dt'].dt.strftime('%d-%m')
+            year_data['DayOfYear'] = year_data['Date_dt'].dt.dayofyear
             
             # Sort by date
             year_data = year_data.sort_values('DayOfYear')
@@ -763,8 +901,8 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
         
         if not year_data.empty:
             # Create Date-Month format (DD-MM) for x-axis
-            year_data['Date_Month'] = year_data['Date(DD-MM-YYYY)'].dt.strftime('%d-%m')
-            year_data['DayOfYear'] = year_data['Date(DD-MM-YYYY)'].dt.dayofyear
+            year_data['Date_Month'] = year_data['Date_dt'].dt.strftime('%d-%m')
+            year_data['DayOfYear'] = year_data['Date_dt'].dt.dayofyear
             
             # Sort by date
             year_data = year_data.sort_values('DayOfYear')
@@ -853,9 +991,9 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
         year_end = end_date_dt.replace(year=year)
         
         year_data = filtered_df[
-            (filtered_df["Date(DD-MM-YYYY)"] >= year_start) & 
-            (filtered_df["Date(DD-MM-YYYY)"] <= year_end) &
-            (filtered_df["Date(DD-MM-YYYY)"].dt.year == year)
+            (filtered_df["Date_dt"] >= year_start) & 
+            (filtered_df["Date_dt"] <= year_end) &
+            (filtered_df["Date_dt"].dt.year == year)
         ].copy()
         
         if not year_data.empty:
@@ -1516,4 +1654,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
