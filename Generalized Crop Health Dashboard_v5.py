@@ -250,6 +250,115 @@ else:
     st.sidebar.warning("⚠️ Please upload weather data file for analysis")
 
 # -----------------------------
+# UPDATED DATA AGGREGATION FUNCTIONS
+# -----------------------------
+def aggregate_weather_data_by_level(data_df, district=None, taluka=None, circle=None):
+    """
+    Aggregate weather data based on selected level
+    - District level: Show all talukas with calculations
+    - Taluka level: Show all circles with calculations
+    - Circle level: Show individual circle data
+    """
+    if circle and circle != "":
+        # Circle level - return individual circle data
+        filtered_data = data_df[data_df["Circle"] == circle].copy()
+        return filtered_data, "Circle"
+    
+    elif taluka and taluka != "":
+        # Taluka level - aggregate all circles under the taluka
+        filtered_data = data_df[data_df["Taluka"] == taluka].copy()
+        
+        # Group by date and calculate metrics
+        aggregated = filtered_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
+            'Rainfall': 'sum',  # Sum for rainfall
+            'Rainy_days': 'sum',  # Sum for rainy days (if exists)
+            'Tmax': 'mean',  # Mean for Tmax
+            'Tmin': 'mean',  # Mean for Tmin
+            'max_Rh': 'mean',  # Mean for max_Rh
+            'min_Rh': 'mean'   # Mean for min_Rh
+        }).reset_index()
+        
+        # Create Circle column as "All Circles in [Taluka]"
+        aggregated['Circle'] = f"All Circles in {taluka}"
+        return aggregated, "Taluka"
+    
+    elif district and district != "":
+        # District level - aggregate all talukas under the district
+        filtered_data = data_df[data_df["District"] == district].copy()
+        
+        # Group by date and taluka, calculate metrics for each taluka
+        aggregated = filtered_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
+            'Rainfall': 'sum',  # Sum for rainfall
+            'Rainy_days': 'sum',  # Sum for rainy days (if exists)
+            'Tmax': 'mean',  # Mean for Tmax
+            'Tmin': 'mean',  # Mean for Tmin
+            'max_Rh': 'mean',  # Mean for max_Rh
+            'min_Rh': 'mean'   # Mean for min_Rh
+        }).reset_index()
+        
+        # Create Circle column as "All Circles in [Taluka]"
+        aggregated['Circle'] = aggregated['Taluka'].apply(lambda x: f"All Circles in {x}")
+        return aggregated, "District"
+    
+    else:
+        # No selection - return original data
+        return data_df, "All"
+
+def aggregate_remote_sensing_data_by_level(data_df, metric_col, district=None, taluka=None, circle=None):
+    """
+    Aggregate remote sensing data (NDVI, NDWI, MAI) based on selected level
+    - District level: Show all talukas with mean (excluding 0 values)
+    - Taluka level: Show all circles with mean (excluding 0 values)
+    - Circle level: Show individual circle data
+    """
+    if circle and circle != "":
+        # Circle level - return individual circle data
+        filtered_data = data_df[data_df["Circle"] == circle].copy()
+        return filtered_data, "Circle"
+    
+    elif taluka and taluka != "":
+        # Taluka level - aggregate all circles under the taluka
+        filtered_data = data_df[data_df["Taluka"] == taluka].copy()
+        
+        # Exclude 0 values for mean calculation
+        non_zero_data = filtered_data[filtered_data[metric_col] != 0]
+        
+        if not non_zero_data.empty:
+            # Group by date and calculate mean (excluding 0 values)
+            aggregated = non_zero_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
+                metric_col: 'mean'
+            }).reset_index()
+            
+            # Create Circle column as "All Circles in [Taluka]"
+            aggregated['Circle'] = f"All Circles in {taluka}"
+            return aggregated, "Taluka"
+        else:
+            return filtered_data, "Taluka"
+    
+    elif district and district != "":
+        # District level - aggregate all talukas under the district
+        filtered_data = data_df[data_df["District"] == district].copy()
+        
+        # Exclude 0 values for mean calculation
+        non_zero_data = filtered_data[filtered_data[metric_col] != 0]
+        
+        if not non_zero_data.empty:
+            # Group by date and taluka, calculate mean for each taluka
+            aggregated = non_zero_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
+                metric_col: 'mean'
+            }).reset_index()
+            
+            # Create Circle column as "All Circles in [Taluka]"
+            aggregated['Circle'] = aggregated['Taluka'].apply(lambda x: f"All Circles in {x}")
+            return aggregated, "District"
+        else:
+            return filtered_data, "District"
+    
+    else:
+        # No selection - return original data
+        return data_df, "All"
+
+# -----------------------------
 # FORTNIGHT DEFINITION
 # -----------------------------
 def get_fortnight(date_obj):
@@ -501,15 +610,8 @@ def create_fortnightly_deviation_chart(current_year_data, last_year_data, title,
 # -----------------------------
 def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, end_date):
     """Create NDVI comparison chart between 2023 and 2024 with Date-Month x-axis"""
-    filtered_df = ndvi_df.copy()
-    
-    # Apply location filters
-    if district:
-        filtered_df = filtered_df[filtered_df["District"] == district]
-    if taluka:
-        filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
-    if circle:
-        filtered_df = filtered_df[filtered_df["Circle"] == circle]
+    # Use the new aggregation function for remote sensing data
+    filtered_df, level = aggregate_remote_sensing_data_by_level(ndvi_df, "NDVI", district, taluka, circle)
     
     # Filter for selected date range across both years
     start_date_dt = pd.to_datetime(start_date)
@@ -575,15 +677,12 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
         ))
     
     # Determine level name for title
-    if circle and circle != "":
+    if level == "Circle":
         level_name = circle
-        level = "Circle"
-    elif taluka and taluka != "":
+    elif level == "Taluka":
         level_name = taluka
-        level = "Taluka"
     else:
         level_name = district
-        level = "District"
     
     fig.update_layout(
         title=dict(text=f"NDVI Trend Comparison: 2023 vs 2024 - {level}: {level_name}", x=0.5, xanchor='center'),
@@ -609,15 +708,8 @@ def create_ndvi_comparison_chart(ndvi_df, district, taluka, circle, start_date, 
 
 def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, end_date):
     """Create NDWI comparison chart between 2023 and 2024 with Date-Month x-axis"""
-    filtered_df = ndwi_df.copy()
-    
-    # Apply location filters
-    if district:
-        filtered_df = filtered_df[filtered_df["District"] == district]
-    if taluka:
-        filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
-    if circle:
-        filtered_df = filtered_df[filtered_df["Circle"] == circle]
+    # Use the new aggregation function for remote sensing data
+    filtered_df, level = aggregate_remote_sensing_data_by_level(ndwi_df, "NDWI", district, taluka, circle)
     
     # Filter for selected date range across both years
     start_date_dt = pd.to_datetime(start_date)
@@ -683,15 +775,12 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
         ))
     
     # Determine level name for title
-    if circle and circle != "":
+    if level == "Circle":
         level_name = circle
-        level = "Circle"
-    elif taluka and taluka != "":
+    elif level == "Taluka":
         level_name = taluka
-        level = "Taluka"
     else:
         level_name = district
-        level = "District"
     
     fig.update_layout(
         title=dict(text=f"NDWI Trend Comparison: 2023 vs 2024 - {level}: {level_name}", x=0.5, xanchor='center'),
@@ -717,15 +806,8 @@ def create_ndwi_comparison_chart(ndwi_df, district, taluka, circle, start_date, 
 
 def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, start_date, end_date):
     """Create deviation column chart for NDVI and NDWI"""
-    filtered_df = ndvi_ndwi_df.copy()
-    
-    # Apply location filters
-    if district:
-        filtered_df = filtered_df[filtered_df["District"] == district]
-    if taluka:
-        filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
-    if circle:
-        filtered_df = filtered_df[filtered_df["Circle"] == circle]
+    # Use the new aggregation function for remote sensing data
+    filtered_df, level = aggregate_remote_sensing_data_by_level(ndvi_ndwi_df, "NDVI", district, taluka, circle)
     
     # Filter for selected date range
     start_date_dt = pd.to_datetime(start_date)
@@ -805,15 +887,12 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
     fig.add_hline(y=0, line_dash="dash", line_color="black", opacity=0.5)
     
     # Determine level name for title
-    if circle and circle != "":
+    if level == "Circle":
         level_name = circle
-        level = "Circle"
-    elif taluka and taluka != "":
+    elif level == "Taluka":
         level_name = taluka
-        level = "Taluka"
     else:
         level_name = district
-        level = "District"
     
     fig.update_layout(
         title=dict(text=f"NDVI & NDWI Deviation (2024 vs 2023) - {level}: {level_name}", x=0.5, xanchor='center'),
@@ -828,14 +907,8 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
 
 def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     """Create monthly MAI comparison chart for 2023 vs 2024 with deviation"""
-    filtered_df = mai_df.copy()
-    
-    if district:
-        filtered_df = filtered_df[filtered_df["District"] == district]
-    if taluka:
-        filtered_df = filtered_df[filtered_df["Taluka"] == taluka]
-    if circle:
-        filtered_df = filtered_df[filtered_df["Circle"] == circle]
+    # Use the new aggregation function for remote sensing data
+    filtered_df, level = aggregate_remote_sensing_data_by_level(mai_df, "MAI (%)", district, taluka, circle)
     
     # Filter for 2023 and 2024
     filtered_df = filtered_df[filtered_df["Year"].isin([2023, 2024])]
@@ -913,15 +986,12 @@ def create_mai_monthly_comparison_chart(mai_df, district, taluka, circle):
     ), secondary_y=True)
     
     # Determine level name for title
-    if circle and circle != "":
+    if level == "Circle":
         level_name = circle
-        level = "Circle"
-    elif taluka and taluka != "":
+    elif level == "Taluka":
         level_name = taluka
-        level = "Taluka"
     else:
         level_name = district
-        level = "District"
     
     fig.update_layout(
         title=dict(text=f"MAI Monthly Comparison: 2023 vs 2024 with Deviation - {level}: {level_name}", x=0.5, xanchor='center'),
@@ -1050,27 +1120,10 @@ if generate:
         sowing_date_str = sowing_date.strftime("%d/%m/%Y")
         current_date_str = current_date.strftime("%d/%m/%Y")
         
-        # Determine level and name for calculations
-        if circle and circle != "":
-            level = "Circle"
-            level_name = circle
-        elif taluka and taluka != "":
-            level = "Taluka"
-            level_name = taluka
-        else:
-            level = "District"
-            level_name = district
-
-        st.info(f"📊 Calculating metrics for **{level}**: {level_name}")
-
-        # Filter weather data for selected location
-        filtered_weather = weather_df.copy()
-        if district:
-            filtered_weather = filtered_weather[filtered_weather["District"] == district]
-        if taluka:
-            filtered_weather = filtered_weather[filtered_weather["Taluka"] == taluka]
-        if circle:
-            filtered_weather = filtered_weather[filtered_weather["Circle"] == circle]
+        # Use the new aggregation functions
+        aggregated_weather, weather_level = aggregate_weather_data_by_level(weather_df, district, taluka, circle)
+        
+        st.info(f"📊 Calculating metrics for **{weather_level}**: {district}")
 
         # Set years to 2023 and 2024 as requested
         current_year = 2024
@@ -1081,9 +1134,9 @@ if generate:
 
         # TAB 1: WEATHER METRICS
         with tab1:
-            st.header(f"🌤️ Weather Metrics - {level}: {level_name}")
+            st.header(f"🌤️ Weather Metrics - {weather_level}: {district}")
             
-            if not filtered_weather.empty:
+            if not aggregated_weather.empty:
                 # I. Rainfall Analysis
                 st.subheader("I. Rainfall Analysis")
                 
@@ -1094,7 +1147,7 @@ if generate:
                 with col1:
                     # Fortnightly Rainfall Comparison
                     fortnightly_rainfall = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "Rainfall", "sum"
+                        aggregated_weather, current_year, last_year, "Rainfall", "sum"
                     )
                     fig_rainfall_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rainfall[current_year], 
@@ -1117,7 +1170,7 @@ if generate:
                 # Monthly Analysis
                 st.markdown("##### Monthly Analysis")
                 monthly_rainfall = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "Rainfall", "sum"
+                    aggregated_weather, current_year, last_year, "Rainfall", "sum"
                 )
                 fig_rainfall_monthly = create_monthly_clustered_chart(
                     monthly_rainfall[current_year], 
@@ -1137,7 +1190,7 @@ if generate:
                 with col1:
                     # Fortnightly Rainy Days
                     fortnightly_rainy_days = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "Rainfall", "count"
+                        aggregated_weather, current_year, last_year, "Rainfall", "count"
                     )
                     fig_rainy_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rainy_days[current_year], 
@@ -1160,7 +1213,7 @@ if generate:
                 # Monthly Analysis
                 st.markdown("##### Monthly Analysis")
                 monthly_rainy_days = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "Rainfall", "count"
+                    aggregated_weather, current_year, last_year, "Rainfall", "count"
                 )
                 fig_rainy_monthly = create_monthly_clustered_chart(
                     monthly_rainy_days[current_year], 
@@ -1180,7 +1233,7 @@ if generate:
                 with col1:
                     # Fortnightly Tmax
                     fortnightly_tmax = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "Tmax", "mean"
+                        aggregated_weather, current_year, last_year, "Tmax", "mean"
                     )
                     fig_tmax_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_tmax[current_year], 
@@ -1202,7 +1255,7 @@ if generate:
                 
                 # Monthly Tmax
                 monthly_tmax = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "Tmax", "mean"
+                    aggregated_weather, current_year, last_year, "Tmax", "mean"
                 )
                 fig_tmax_monthly = create_monthly_clustered_chart(
                     monthly_tmax[current_year], 
@@ -1219,7 +1272,7 @@ if generate:
                 with col1:
                     # Fortnightly Tmin
                     fortnightly_tmin = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "Tmin", "mean"
+                        aggregated_weather, current_year, last_year, "Tmin", "mean"
                     )
                     fig_tmin_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_tmin[current_year], 
@@ -1241,7 +1294,7 @@ if generate:
                 
                 # Monthly Tmin
                 monthly_tmin = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "Tmin", "mean"
+                    aggregated_weather, current_year, last_year, "Tmin", "mean"
                 )
                 fig_tmin_monthly = create_monthly_clustered_chart(
                     monthly_tmin[current_year], 
@@ -1261,7 +1314,7 @@ if generate:
                 with col1:
                     # Fortnightly RH max
                     fortnightly_rh_max = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "max_Rh", "mean"
+                        aggregated_weather, current_year, last_year, "max_Rh", "mean"
                     )
                     fig_rh_max_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rh_max[current_year], 
@@ -1283,7 +1336,7 @@ if generate:
                 
                 # Monthly RH max
                 monthly_rh_max = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "max_Rh", "mean"
+                    aggregated_weather, current_year, last_year, "max_Rh", "mean"
                 )
                 fig_rh_max_monthly = create_monthly_clustered_chart(
                     monthly_rh_max[current_year], 
@@ -1300,7 +1353,7 @@ if generate:
                 with col1:
                     # Fortnightly RH min
                     fortnightly_rh_min = calculate_fortnightly_metrics(
-                        filtered_weather, current_year, last_year, "min_Rh", "mean"
+                        aggregated_weather, current_year, last_year, "min_Rh", "mean"
                     )
                     fig_rh_min_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rh_min[current_year], 
@@ -1322,7 +1375,7 @@ if generate:
                 
                 # Monthly RH min
                 monthly_rh_min = calculate_monthly_metrics(
-                    filtered_weather, current_year, last_year, "min_Rh", "mean"
+                    aggregated_weather, current_year, last_year, "min_Rh", "mean"
                 )
                 fig_rh_min_monthly = create_monthly_clustered_chart(
                     monthly_rh_min[current_year], 
@@ -1337,7 +1390,7 @@ if generate:
 
         # TAB 2: REMOTE SENSING INDICES (UPDATED)
         with tab2:
-            st.header(f"📡 Remote Sensing Indices - {level}: {level_name}")
+            st.header(f"📡 Remote Sensing Indices - {weather_level}: {district}")
             
             # I. NDVI Trend Analysis
             st.subheader("I. NDVI Trend Analysis")
@@ -1381,7 +1434,7 @@ if generate:
 
         # TAB 3: DOWNLOAD DATA (FIXED - Removed download charts section)
         with tab3:
-            st.header(f"💾 Download Data - {level}: {level_name}")
+            st.header(f"💾 Download Data - {weather_level}: {district}")
             
             # Download Data Section only
             st.subheader("Download Data Tables")
@@ -1390,38 +1443,26 @@ if generate:
             
             with col1:
                 # Weather Data
-                if not filtered_weather.empty:
-                    download_data_as_csv(filtered_weather, f"Weather_Data_{level}_{level_name}")
+                if not aggregated_weather.empty:
+                    download_data_as_csv(aggregated_weather, f"Weather_Data_{weather_level}_{district}")
                 else:
                     st.write("No weather data available")
             
             with col2:
                 # NDVI & NDWI Data
-                filtered_ndvi_ndwi = ndvi_ndwi_df.copy()
-                if district:
-                    filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["District"] == district]
-                if taluka:
-                    filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["Taluka"] == taluka]
-                if circle:
-                    filtered_ndvi_ndwi = filtered_ndvi_ndwi[filtered_ndvi_ndwi["Circle"] == circle]
+                filtered_ndvi_ndwi, ndvi_level = aggregate_remote_sensing_data_by_level(ndvi_ndwi_df, "NDVI", district, taluka, circle)
                 
                 if not filtered_ndvi_ndwi.empty:
-                    download_data_as_csv(filtered_ndvi_ndwi, f"NDVI_NDWI_Data_{level}_{level_name}")
+                    download_data_as_csv(filtered_ndvi_ndwi, f"NDVI_NDWI_Data_{ndvi_level}_{district}")
                 else:
                     st.write("No NDVI/NDWI data available")
             
             with col3:
                 # MAI Data
-                filtered_mai = mai_df.copy()
-                if district:
-                    filtered_mai = filtered_mai[filtered_mai["District"] == district]
-                if taluka:
-                    filtered_mai = filtered_mai[filtered_mai["Taluka"] == taluka]
-                if circle:
-                    filtered_mai = filtered_mai[filtered_mai["Circle"] == circle]
+                filtered_mai, mai_level = aggregate_remote_sensing_data_by_level(mai_df, "MAI (%)", district, taluka, circle)
                 
                 if not filtered_mai.empty:
-                    download_data_as_csv(filtered_mai, f"MAI_Data_{level}_{level_name}")
+                    download_data_as_csv(filtered_mai, f"MAI_Data_{mai_level}_{district}")
                 else:
                     st.write("No MAI data available")
 
