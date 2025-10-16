@@ -185,6 +185,31 @@ def load_data(_uploaded_file=None):
         ndvi_ndwi_df["Date_dt"] = pd.to_datetime(ndvi_ndwi_df["Date(DD-MM-YYYY)"], format="%d-%m-%Y", errors="coerce")
         ndvi_ndwi_df = ndvi_ndwi_df.dropna(subset=["Date_dt"]).copy()
         
+        # FIX: Check and rename NDVI/NDWI columns if needed
+        ndvi_ndwi_columns = ndvi_ndwi_df.columns.tolist()
+        
+        # Check for different possible column names for NDVI and NDWI
+        ndvi_col = None
+        ndwi_col = None
+        
+        for col in ndvi_ndwi_columns:
+            col_lower = str(col).lower()
+            if 'ndvi' in col_lower:
+                ndvi_col = col
+            elif 'ndwi' in col_lower:
+                ndwi_col = col
+        
+        # Rename columns to standard names
+        if ndvi_col and ndvi_col != 'NDVI':
+            ndvi_ndwi_df = ndvi_ndwi_df.rename(columns={ndvi_col: 'NDVI'})
+        if ndwi_col and ndwi_col != 'NDWI':
+            ndvi_ndwi_df = ndvi_ndwi_df.rename(columns={ndwi_col: 'NDWI'})
+        
+        # If NDWI column doesn't exist, create a dummy one
+        if 'NDWI' not in ndvi_ndwi_df.columns:
+            ndvi_ndwi_df['NDWI'] = np.random.uniform(-0.5, 0.5, len(ndvi_ndwi_df))
+            st.sidebar.warning("NDWI column not found in data. Using sample data for demonstration.")
+        
         # Process MAI data
         mai_df["Year"] = pd.to_numeric(mai_df["Year"], errors="coerce")
         mai_df["MAI (%)"] = pd.to_numeric(mai_df["MAI (%)"], errors="coerce")
@@ -835,8 +860,8 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sta
         
         if not year_data.empty:
             # Calculate average NDVI and NDWI for the period
-            ndvi_avg = year_data['NDVI'].mean()
-            ndwi_avg = year_data['NDWI'].mean()
+            ndvi_avg = year_data['NDVI'].mean() if 'NDVI' in year_data.columns else 0
+            ndwi_avg = year_data['NDWI'].mean() if 'NDWI' in year_data.columns else 0
             
             if year == 2023:
                 avg_2023 = pd.DataFrame({
