@@ -198,6 +198,9 @@ def load_data(_uploaded_file=None):
             if col in weather_df.columns:
                 weather_df[col] = pd.to_numeric(weather_df[col], errors="coerce")
         
+        # ADDED: Calculate Rainy_days column
+        weather_df["Rainy_days"] = (weather_df["Rainfall"] > 0).astype(int)
+        
         # Get unique locations from all datasets
         districts = sorted(weather_df["District"].dropna().unique().tolist())
         talukas = sorted(weather_df["Taluka"].dropna().unique().tolist())
@@ -238,7 +241,10 @@ def create_sample_weather_data():
             'Date_dt': date_val
         })
     
-    return pd.DataFrame(sample_data)
+    sample_df = pd.DataFrame(sample_data)
+    # ADDED: Calculate Rainy_days column for sample data
+    sample_df["Rainy_days"] = (sample_df["Rainfall"] > 0).astype(int)
+    return sample_df
 
 # Load data with the uploaded file
 weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data(uploaded_weather_file)
@@ -271,7 +277,7 @@ def aggregate_weather_data_by_level(data_df, district=None, taluka=None, circle=
         # Group by date and calculate metrics
         aggregated = filtered_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
             'Rainfall': 'sum',  # Sum for rainfall
-            'Rainy_days': 'sum',  # Sum for rainy days (if exists)
+            'Rainy_days': 'sum',  # Sum for rainy days
             'Tmax': 'mean',  # Mean for Tmax
             'Tmin': 'mean',  # Mean for Tmin
             'max_Rh': 'mean',  # Mean for max_Rh
@@ -289,7 +295,7 @@ def aggregate_weather_data_by_level(data_df, district=None, taluka=None, circle=
         # Group by date and taluka, calculate metrics for each taluka
         aggregated = filtered_data.groupby(['Date_dt', 'District', 'Taluka']).agg({
             'Rainfall': 'sum',  # Sum for rainfall
-            'Rainy_days': 'sum',  # Sum for rainy days (if exists)
+            'Rainy_days': 'sum',  # Sum for rainy days
             'Tmax': 'mean',  # Mean for Tmax
             'Tmin': 'mean',  # Mean for Tmin
             'max_Rh': 'mean',  # Mean for max_Rh
@@ -405,7 +411,7 @@ def calculate_fortnightly_metrics(data_df, current_year, last_year, metric_col, 
             else:
                 fortnight_metrics = pd.Series(dtype=float)
         elif agg_func == 'count':
-            fortnight_metrics = (year_data[metric_col] > 0).groupby(year_data['Fortnight']).sum()
+            fortnight_metrics = year_data.groupby('Fortnight')[metric_col].sum()  # Use sum for Rainy_days
         
         # Round to 2 decimal places
         fortnight_metrics = fortnight_metrics.round(2)
@@ -431,7 +437,7 @@ def calculate_monthly_metrics(data_df, current_year, last_year, metric_col, agg_
             else:
                 monthly_metrics = pd.Series(dtype=float)
         elif agg_func == 'count':
-            monthly_metrics = (year_data[metric_col] > 0).groupby(year_data['Month']).sum()
+            monthly_metrics = year_data.groupby('Month')[metric_col].sum()  # Use sum for Rainy_days
         
         # Round to 2 decimal places
         monthly_metrics = monthly_metrics.round(2)
@@ -1190,7 +1196,7 @@ if generate:
                 with col1:
                     # Fortnightly Rainy Days
                     fortnightly_rainy_days = calculate_fortnightly_metrics(
-                        aggregated_weather, current_year, last_year, "Rainfall", "count"
+                        aggregated_weather, current_year, last_year, "Rainy_days", "count"
                     )
                     fig_rainy_fortnight = create_fortnightly_comparison_chart(
                         fortnightly_rainy_days[current_year], 
@@ -1213,7 +1219,7 @@ if generate:
                 # Monthly Analysis
                 st.markdown("##### Monthly Analysis")
                 monthly_rainy_days = calculate_monthly_metrics(
-                    aggregated_weather, current_year, last_year, "Rainfall", "count"
+                    aggregated_weather, current_year, last_year, "Rainy_days", "count"
                 )
                 fig_rainy_monthly = create_monthly_clustered_chart(
                     monthly_rainy_days[current_year], 
