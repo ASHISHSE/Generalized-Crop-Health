@@ -128,14 +128,14 @@ st.markdown("""
 # -----------------------------
 # WEATHER DATA OPTIONS (UPDATED - Only Uploaded File)
 # -----------------------------
-st.sidebar.info("🌤️ Weather Data Options")
-st.sidebar.info("📊 Please upload weather data file for analysis")
+#st.sidebar.info("🌤️ Weather Data Options")
+#st.sidebar.info("📊 Please upload weather data file for analysis")
 
-uploaded_weather_file = st.sidebar.file_uploader(
-    "Upload Weather Data (.xlsx)", 
-    type=['xlsx'],
-    help="File should contain sheets: 'Weather_data_23' and 'Weather_data_24'"
-)
+#uploaded_weather_file = st.sidebar.file_uploader(
+   # "Upload Weather Data (.xlsx)", 
+  #  type=['xlsx'],
+ #   help="File should contain sheets: 'Weather_data_23' and 'Weather_data_24'"
+#)
 
 # -----------------------------
 # LOAD DATA - UPDATED with .xlsx weather file
@@ -1142,7 +1142,7 @@ st.markdown(
 )
 
 # --- Date Selection Section ---
-st.markdown("### 📅 Date Selection")
+#st.markdown("### 📅 Date Selection")
 
 # MODIFIED LAYOUT: Dynamic location selection based on requirements
 col1, col2 = st.columns(2)
@@ -1568,3 +1568,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
