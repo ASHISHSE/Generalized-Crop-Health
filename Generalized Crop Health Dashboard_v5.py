@@ -241,7 +241,7 @@ def create_sample_weather_data():
     return pd.DataFrame(sample_data)
 
 # Load data with the uploaded file
-weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data(uploaded_weather_file)
+weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles 
 
 # Show info message based on weather data source
 if uploaded_weather_file is not None:
@@ -1568,4 +1568,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
