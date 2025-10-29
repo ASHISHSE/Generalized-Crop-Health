@@ -131,11 +131,11 @@ st.markdown("""
 #st.sidebar.info("🌤️ Weather Data Options")
 #st.sidebar.info("📊 Please upload weather data file for analysis")
 
-#uploaded_weather_file = st.sidebar.file_uploader(
-   # "Upload Weather Data (.xlsx)", 
-  #  type=['xlsx'],
- #   help="File should contain sheets: 'Weather_data_23' and 'Weather_data_24'"
-#)
+uploaded_weather_file = st.sidebar.file_uploader(
+    "Upload Weather Data (.xlsx)", 
+    type=['xlsx'],
+    help="File should contain sheets: 'Weather_data_23' and 'Weather_data_24'"
+ )
 
 # -----------------------------
 # LOAD DATA - UPDATED with .xlsx weather file
@@ -241,7 +241,8 @@ def create_sample_weather_data():
     return pd.DataFrame(sample_data)
 
 # Load data with the uploaded file
-weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles 
+weather_df, ndvi_ndwi_df, mai_df, districts, talukas, circles = load_data(uploaded_weather_file)
+
 
 # Show info message based on weather data source
 if uploaded_weather_file is not None:
@@ -1568,5 +1569,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
