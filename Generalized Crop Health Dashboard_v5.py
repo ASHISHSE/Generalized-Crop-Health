@@ -125,6 +125,32 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
+# --- Testing / Instruction Note ---
+st.markdown("""
+<div style='
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 4px solid #f4a261;
+    padding: 10px 16px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+'>
+    <span style='color: red; font-weight: 700;'>⚠️ Testing Version:</span>
+    <span style='color: blue;'>
+        Data uploaded from <b>01 Jan 2023</b> to <b>31 Dec 2024</b>.
+        Please select <b>(Sowing & Current)</b> dates within this range.
+    </span>
+    <br><br>
+    <span style='color: black;'>
+        🔹 <b>Level of Selection:</b> You can select data from 
+        <b>Circle → Taluka → District</b> level.
+    </span>
+    <br>
+    <span style='color: black;'>
+        🔸 You may also select only <b>District</b> or <b>Taluka</b> level if required.
+    </span>
+</div>
+""", unsafe_allow_html=True)
 # -----------------------------
 # WEATHER DATA OPTIONS (UPDATED - Only Uploaded File)
 # -----------------------------
@@ -1569,6 +1595,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
