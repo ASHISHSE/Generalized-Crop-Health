@@ -12,8 +12,12 @@ drive
 kaleido
 pyxlsb==1.0.9
 scipy
-uv
-libglib2.0-0t64
+streamlit==1.32.0
+pandas==2.2.1
+numpy==1.26.4
+openpyxl==3.1.2
+requests==2.31.0
+plotly==5.19.0
 
 
 
