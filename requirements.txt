@@ -9,7 +9,6 @@ pyxlsb
 xlrd
 lfs
 drive
-kaleido
 pyxlsb==1.0.9
 scipy
 
