@@ -280,3 +280,25 @@ def create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle,
                     xanchor="right", x=1)
     )
     return fig
+
+
+
+# -----------------------------
+# FOOTER
+# -----------------------------
+st.markdown(
+    """
+    <div style='text-align: center; font-size: 16px; margin-top: 20px;'>
+        💻 <b>Developed by:</b> Ashish Selokar <br>
+        📧 For suggestions or queries, please email at:
+        <a href="mailto:ashish111.selokar@gmail.com">ashish111.selokar@gmail.com</a> <br><br>
+        <span style="font-size:15px; color:green;">
+            🌾 Empowering Farmers with Data-Driven Insights 🌾
+        </span><br>
+        <span style="font-size:13px; color:gray;">
+            Version 2.0 | Powered by Agricose | Last Updated: Oct 2024
+        </span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
