@@ -632,19 +632,19 @@ if generate:
 
             st.subheader("I. NDVI Analysis")
             fig_ndvi = create_ndvi_comparison_chart(ndvi_ndwi_df, district, taluka, circle, sowing_date, current_date)
-            st.plotly_chart(fig_ndvi, use_container_width=True) if fig_ndvi else st.info("No NDVI data available.")
+            st.plotly_chart(fig_ndvi, use_container_width=True) #if fig_ndvi else st.info("No NDVI data available.")
 
             st.subheader("II. NDWI Analysis")
             fig_ndwi = create_ndwi_comparison_chart(ndvi_ndwi_df, district, taluka, circle, sowing_date, current_date)
-            st.plotly_chart(fig_ndwi, use_container_width=True) if fig_ndwi else st.info("No NDWI data available.")
+            st.plotly_chart(fig_ndwi, use_container_width=True) #if fig_ndwi else st.info("No NDWI data available.")
 
             st.subheader("III. NDVI & NDWI Deviation Analysis")
             fig_dev = create_ndvi_ndwi_deviation_chart(ndvi_ndwi_df, district, taluka, circle, sowing_date, current_date)
-            st.plotly_chart(fig_dev, use_container_width=True) if fig_dev else st.info("No deviation data available.")
+            st.plotly_chart(fig_dev, use_container_width=True) #if fig_dev else st.info("No deviation data available.")
 
             st.subheader("IV. MAI Analysis")
             fig_mai = create_mai_monthly_comparison_chart(mai_df, district, taluka, circle)
-            st.plotly_chart(fig_mai, use_container_width=True) if fig_mai else st.info("No MAI data available.")
+            st.plotly_chart(fig_mai, use_container_width=True) #if fig_mai else st.info("No MAI data available.")
 
         # ══════════════════════════════════════════════════════════════
         # TAB 3 — DOWNLOAD DATA
